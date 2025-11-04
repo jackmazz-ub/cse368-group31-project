@@ -26,16 +26,16 @@ class Markers(IntEnum):
 
 class Gameboard:
     def __init__(self, rows, cols, snake):        
-        self.markers = []
+        self.cells = []
         self.rows = rows
         self.cols = cols
         self.snake = snake
         
         # initialize all markers to floor (no content)
         for i in range(rows):
-            self.markers.append([])
+            self.cells.append([])
             for j in range(cols):
-                self.markers[i].append(Markers.FLOOR)
+                self.cells[i].append(Markers.FLOOR)
 
     def draw(self, screen):
         screen.fill(BACKGROUND_COLOR)
@@ -43,7 +43,7 @@ class Gameboard:
         # represent the snake as markers
         for segment in self.snake:
             if self.in_bounds(segment.row, segment.col):
-                self.markers[segment.row][segment.col] = Markers.SNAKE
+                self.cells[segment.row][segment.col] = Markers.SNAKE
         
         # iterate by +2 to add a layer of walls around the grid
         for i in range(self.rows+2):
@@ -61,7 +61,7 @@ class Gameboard:
                 # make the cell a wall if it is out-of-bounds
                 marker = Markers.WALL
                 if self.in_bounds(row, col):
-                    marker = self.markers[row][col]
+                    marker = self.cells[row][col]
                 
                 # choose color depending on marker
                 # this is the primary purpose of the marker system
@@ -81,7 +81,7 @@ class Gameboard:
         # remove snake from markers for the next round
         for segment in self.snake:
             if self.in_bounds(segment.row, segment.col):
-                self.markers[segment.row][segment.col] = Markers.FLOOR
+                self.cells[segment.row][segment.col] = Markers.FLOOR
     
     # check whether a row and column are within the bounds of the grid
     def in_bounds(self, row, col):

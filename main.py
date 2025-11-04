@@ -2,16 +2,17 @@ import pygame
 import random
 import sys
 import os
+import time
 
-from ui.gameboard import Gameboard
-from util.snake import Snake
+from gameboard import Gameboard
+from snake import Snake, Directions
 
 # initial display settings
 SCREEN_X = 0
 SCREEN_Y = 0
 SCREEN_WIDTH = 960
 SCREEN_HEIGHT = 540
-FULLSCREEN = False # enable/disable fullscreen on startup
+FULLSCREEN = True # enable/disable fullscreen on startup
 VSYNC = True
 
 # number of cells on the gameboard
@@ -19,7 +20,7 @@ GRID_ROWS = 90
 GRID_COLS = 175
 
 # initial game state values
-SNAKE_LENGTH = 4
+SNAKE_LENGTH = 300
 SNAKE_ROW = random.randint(0, GRID_ROWS-1)
 SNAKE_COL = random.randint(0, GRID_COLS-1)
 SNAKE_DIRECTION = random.randint(0, 3)
@@ -49,6 +50,7 @@ def main(argv):
     # init game state
     snake = Snake(SNAKE_LENGTH, SNAKE_ROW, SNAKE_COL, SNAKE_DIRECTION)
     gameboard = Gameboard(GRID_ROWS, GRID_COLS, snake)
+    direction = SNAKE_DIRECTION
     
     # set display position
     os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (SCREEN_X, SCREEN_Y)
@@ -61,13 +63,27 @@ def main(argv):
         vsync=VSYNC,
     )
     
+    # gameloop
     active = True
     while active:
         gameboard.draw(screen)
         for event in  pygame.event.get():
         
+            # press w to move north
+            # press a to move west
+            # press s to move south
+            # press d to move east
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_w:
+                direction = Directions.NORTH
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_a:
+                direction = Directions.WEST
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
+                direction = Directions.SOUTH
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_d:
+                direction = Directions.EAST
+        
             # press F11 to toggle fullscreen
-            if event.type == pygame.KEYUP and event.key == pygame.K_F11:
+            elif event.type == pygame.KEYUP and event.key == pygame.K_F11:
                 toggle_fullscreen()
             
             # press ESC to quit
@@ -77,6 +93,8 @@ def main(argv):
             # quit on all quit events
             elif event.type == pygame.QUIT:
                 active = False
+        
+        snake.move(direction)
 
     pygame.quit()
     return 0
