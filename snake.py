@@ -26,15 +26,14 @@ class Segment:
         while True:
         
             # choose the next position
-            match direc_i:
-                case Directions.NORTH:
-                    link_i.row = link_i.row-1
-                case Directions.SOUTH:
-                    link_i.row = link_i.row+1
-                case Directions.EAST:
-                    link_i.col = link_i.col+1
-                case Directions.WEST:
-                    link_i.col = link_i.col-1
+            if direc_i == Directions.NORTH:
+                link_i.row = link_i.row-1
+            elif direc_i == Directions.SOUTH:
+                link_i.row = link_i.row+1
+            elif direc_i == Directions.EAST:
+                link_i.col = link_i.col+1
+            elif direc_i == Directions.WEST:
+                link_i.col = link_i.col-1
             
             # swap direc_i and link_i.direc
             direc_swap = link_i.direc

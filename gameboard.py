@@ -24,6 +24,14 @@ class Markers(IntEnum):
     APPLE = 2
     SNAKE = 3
 
+# map markers to colors
+marker_colors = {
+    Markers.FLOOR: FLOOR_COLOR,
+    Markers.WALL: WALL_COLOR,
+    Markers.APPLE: APPLE_COLOR,
+    Markers.SNAKE: SNAKE_COLOR,
+}
+
 class Gameboard:
     def __init__(self, rows, cols, snake):        
         self.cells = []
@@ -63,18 +71,7 @@ class Gameboard:
                 if self.in_bounds(row, col):
                     marker = self.cells[row][col]
                 
-                # choose color depending on marker
-                # this is the primary purpose of the marker system
-                color = FLOOR_COLOR
-                match marker:
-                    case Markers.SNAKE:
-                        color = SNAKE_COLOR
-                    case Markers.APPLE:
-                        color = APPLE_COLOR
-                    case Markers.WALL:
-                        color = WALL_COLOR
-                
-                pygame.draw.rect(screen, color, rect)
+                pygame.draw.rect(screen, marker_colors[marker], rect)
         
         pygame.display.update()
         
