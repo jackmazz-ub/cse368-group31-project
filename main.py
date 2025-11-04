@@ -20,7 +20,7 @@ GRID_ROWS = 90
 GRID_COLS = 175
 
 # initial game state values
-SNAKE_LENGTH = 300
+SNAKE_LENGTH = 50
 SNAKE_ROW = random.randint(0, GRID_ROWS-1)
 SNAKE_COL = random.randint(0, GRID_COLS-1)
 SNAKE_DIRECTION = random.randint(0, 3)
