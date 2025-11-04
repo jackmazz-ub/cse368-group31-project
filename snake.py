@@ -23,16 +23,14 @@ class Segment:
         self.direc = direc
         self.link = None # subsequent segment
         
-    # move this segment in a particular direc
-    # move all subsequent segments in direc this was previously moving in
+    # move this segment in a particular direction
+    # move all subsequent segments in direction this was previously moving in
     def move(self, direc):
-        
         link_i = self
         direc_i = direc
         
         # move each segment in the chain
         while True:
-        
             # choose the next position
             row = direc_dists(link_i.row)
             col = direc_dists(link_i.col)
@@ -48,7 +46,6 @@ class Segment:
     
     # add segments to the tail of a chain
     def grow(self, length):
-    
         # segments can only be added to the tail
         tail = self
         while tail.link is not None:
