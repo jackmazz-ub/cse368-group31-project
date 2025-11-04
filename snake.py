@@ -31,6 +31,7 @@ class Segment:
         
         # move each segment in the chain
         while True:
+        
             # choose the next position
             row = direc_dists(link_i.row)
             col = direc_dists(link_i.col)
@@ -46,6 +47,7 @@ class Segment:
     
     # add segments to the tail of a chain
     def grow(self, length):
+    
         # segments can only be added to the tail
         tail = self
         while tail.link is not None:
