@@ -56,6 +56,7 @@ class Gameboard:
         # iterate by +2 to add a layer of walls around the grid
         for i in range(self.rows+2):
             for j in range(self.cols+2):
+            
                 # calculate cell position given a row and column
                 x = GRID_X + j * CELL_WIDTH
                 y = GRID_Y + i * CELL_HEIGHT
