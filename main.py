@@ -19,11 +19,13 @@ VSYNC = True
 GRID_ROWS = 90
 GRID_COLS = 175
 
+TICK_RATE = 60
+
 # initial game state values
-SNAKE_LENGTH = 300
+SNAKE_LENGTH = 50
 SNAKE_ROW = random.randint(0, GRID_ROWS-1)
 SNAKE_COL = random.randint(0, GRID_COLS-1)
-SNAKE_DIRECTION = random.randint(0, 3)
+SNAKE_DIRECTION = 1
 
 screen = None
 gameboard = None
@@ -48,9 +50,8 @@ def main(argv):
     global active
     
     # init game state
-    snake = Snake(SNAKE_LENGTH, SNAKE_ROW, SNAKE_COL, SNAKE_DIRECTION)
-    gameboard = Gameboard(GRID_ROWS, GRID_COLS, snake)
-    direction = SNAKE_DIRECTION
+    gameboard = Gameboard(GRID_ROWS, GRID_COLS)
+    snake = Snake(gameboard, SNAKE_LENGTH, SNAKE_ROW, SNAKE_COL, SNAKE_DIRECTION)
     
     # set display position
     os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (SCREEN_X, SCREEN_Y)
@@ -63,24 +64,28 @@ def main(argv):
         vsync=VSYNC,
     )
     
+    clock = pygame.time.Clock()
+    
     # gameloop
     active = True
     while active:
         gameboard.draw(screen)
-        for event in  pygame.event.get():
+        
+        direc = None
+        for event in pygame.event.get():
         
             # press w to move north
             # press a to move west
             # press s to move south
             # press d to move east
             if event.type == pygame.KEYDOWN and event.key == pygame.K_w:
-                direction = Directions.NORTH
+                direc = Directions.NORTH
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_a:
-                direction = Directions.WEST
+                direc = Directions.WEST
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
-                direction = Directions.SOUTH
+                direc = Directions.SOUTH
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_d:
-                direction = Directions.EAST
+                direc = Directions.EAST
         
             # press F11 to toggle fullscreen
             elif event.type == pygame.KEYUP and event.key == pygame.K_F11:
@@ -94,7 +99,8 @@ def main(argv):
             elif event.type == pygame.QUIT:
                 active = False
         
-        snake.move(direction)
+        snake.move(direc)
+        clock.tick(TICK_RATE)
 
     pygame.quit()
     return 0

@@ -25,7 +25,7 @@ class Markers(IntEnum):
     SNAKE = 3
 
 # map markers to colors
-marker_colors = {
+MARKER_COLORS = {
     Markers.FLOOR: FLOOR_COLOR,
     Markers.WALL: WALL_COLOR,
     Markers.APPLE: APPLE_COLOR,
@@ -33,25 +33,19 @@ marker_colors = {
 }
 
 class Gameboard:
-    def __init__(self, rows, cols, snake):        
-        self.cells = []
+    def __init__(self, rows, cols):        
+        self.markers = []
         self.rows = rows
         self.cols = cols
-        self.snake = snake
         
         # initialize all markers to floor (no content)
         for i in range(rows):
-            self.cells.append([])
+            self.markers.append([])
             for j in range(cols):
-                self.cells[i].append(Markers.FLOOR)
+                self.markers[i].append(Markers.FLOOR)
 
     def draw(self, screen):
         screen.fill(BACKGROUND_COLOR)
-        
-        # represent the snake as markers
-        for segment in self.snake:
-            if self.in_bounds(segment.row, segment.col):
-                self.cells[segment.row][segment.col] = Markers.SNAKE
         
         # iterate by +2 to add a layer of walls around the grid
         for i in range(self.rows+2):
@@ -66,23 +60,24 @@ class Gameboard:
                 row = i-1
                 col = j-1
                 
-                # make the cell a wall if it is out-of-bounds
-                marker = Markers.WALL
-                if self.in_bounds(row, col):
-                    marker = self.cells[row][col]
-                
-                pygame.draw.rect(screen, marker_colors[marker], rect)
+                color = MARKER_COLORS[self.get_marker(row, col)]
+                pygame.draw.rect(screen, color, rect)
         
         pygame.display.update()
-        
-        # remove snake from markers for the next round
-        for segment in self.snake:
-            if self.in_bounds(segment.row, segment.col):
-                self.cells[segment.row][segment.col] = Markers.FLOOR
     
-    # check whether a row and column are within the bounds of the grid
-    def in_bounds(self, row, col):
+    def get_marker(self, row, col):
         row_in = row >= 0 and row < self.rows
         col_in = col >= 0 and col < self.cols
-        return row_in and col_in
+        if row_in and col_in:
+            return self.markers[row][col]
+        
+        return Markers.WALL
+    
+    def set_marker(self, row, col, marker):
+        if self.get_marker != Markers.WALL:
+            self.markers[row][col] = marker
+    
+    def is_blocked(self, row, col):
+        marker = self.get_marker(row, col)
+        return marker == Markers.WALL or marker == Markers.SNAKE
         

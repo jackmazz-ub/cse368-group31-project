@@ -1,89 +1,80 @@
 from enum import IntEnum
+from gameboard import Markers
 
 class Directions(IntEnum):
-    NORTH = 0
-    SOUTH = 1
+    NORTH = 1
+    SOUTH = -1
     EAST = 2
-    WEST = 3
+    WEST = -2
 
-# map directions to row/column distance
-direc_dists = {
-    Directions.NORTH: -1
-    Directions.SOUTH: 1
-    Directions.EAST: 1
-    Directions.WEST: -1
+DIREC_DISTS = {
+    Directions.NORTH: (-1, 0),
+    Directions.SOUTH: (1, 0),
+    Directions.EAST: (0, 1),
+    Directions.WEST: (0, -1),
 }
 
-# a single peice of the snake
-# links to other segments like a linked list
 class Segment:
     def __init__(self, row, col, direc):
         self.row = row
         self.col = col
         self.direc = direc
-        self.link = None # subsequent segment
-        
-    # move this segment in a particular direction
-    # move all subsequent segments in direction this was previously moving in
-    def move(self, direc):
-        link_i = self
-        direc_i = direc
-        
-        # move each segment in the chain
-        while True:
-        
-            # choose the next position
-            row = direc_dists(link_i.row)
-            col = direc_dists(link_i.col)
-            
-            # swap direc_i and link_i.direc
-            direc_swap = link_i.direc
-            link_i.direc = direc_i
-            direc_i = direc_swap
-            
-            link_i = link_i.link
-            if link_i is None:
-                break
-    
-    # add segments to the tail of a chain
-    def grow(self, length):
-    
-        # segments can only be added to the tail
-        tail = self
-        while tail.link is not None:
-            tail = tail.link
-        
-        for i in range(length):
-        
-            # choose the initial position
-            row = -1*direc_dists(link_i.row)
-            col = -1*direc_dists(link_i.col)
-            
-            tail.link = Segment(row, col, self.direc)
-            tail = tail.link
+        self.link = None
 
-# a wrapper which abstracts the segment system
-# should be used instead the segment class
 class Snake:
-    def __init__(self, length, row, col, direc):
+    def __init__(self, gameboard, length, row, col, direc):
+        self.gameboard = gameboard
         self.head = Segment(row, col, direc)
         self.tail = self.head
-        self.tail.grow(length-1)
-        self.length = length
+        self.length = 1
+        self.grow(length-1)
     
     def move(self, direc):
-        self.head.move(direc)
+        if direc is None:
+            direc = self.head.direc
+        
+        if direc == -1*self.head.direc:
+            return True
+    
+        seg = self.head
+        while seg is not None:
+            row = seg.row + DIREC_DISTS[direc][0]
+            col = seg.col + DIREC_DISTS[direc][1]
+            
+            if self.gameboard.is_blocked(row, col):
+                return False
+            
+            prev_row = seg.row
+            prev_col = seg.col
+            seg.row = row
+            seg.col = col
+            
+            direc_swap = seg.direc
+            seg.direc = direc
+            direc = direc_swap
+            
+            seg = seg.link
+            
+            self.gameboard.set_marker(row, col, Markers.SNAKE)
+            self.gameboard.set_marker(prev_row, prev_col, Markers.FLOOR)
+        
+        return True
     
     def grow(self, length):
-        self.tail.grow(length)
-        self.length += length
-    
-    def __len__(self):
-        return self.length
-
-    def __iter__(self):
-        segment = self.head
-        while segment is not None:
-            yield segment
-            segment = segment.link
+        for i in range(length):
+            row = self.tail.row - DIREC_DISTS[self.tail.direc][0]
+            col = self.tail.col - DIREC_DISTS[self.tail.direc][1]
+            
+            is_wall = self.gameboard.get_marker(row, col) == Markers.WALL
+            is_snake = self.gameboard.get_marker(row, col) == Markers.SNAKE
+            if is_wall or is_snake:
+                return i
+            
+            self.tail.link = Segment(row, col, self.tail.direc)
+            self.tail = self.tail.link
+            self.length+=1
+            
+            self.gameboard.set_marker(row, col, Markers.SNAKE)
+        
+        return length
     
