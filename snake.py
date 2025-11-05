@@ -7,7 +7,7 @@ class Directions(IntEnum):
     EAST = 2
     WEST = -2
 
-DIREC_DISTS = {
+direc_dists = {
     Directions.NORTH: (-1, 0),
     Directions.SOUTH: (1, 0),
     Directions.EAST: (0, 1),
@@ -27,19 +27,33 @@ class Snake:
         self.head = Segment(row, col, direc)
         self.tail = self.head
         self.length = 1
+        self.active = True
+        
+        self.gameboard.set_marker(row, col, Markers.SNAKE)
         self.grow(length-1)
     
+    def destroy(self):
+        seg = self.head
+        while seg is not None:
+            self.gameboard.set_marker(seg.row, seg.col, Markers.FLOOR)
+            seg = seg.link
+        
+        self.active = False
+    
     def move(self, direc):
+        if not self.active:
+            return False
+    
         if direc is None:
             direc = self.head.direc
         
         if direc == -1*self.head.direc:
-            return True
+            return False
     
         seg = self.head
         while seg is not None:
-            row = seg.row + DIREC_DISTS[direc][0]
-            col = seg.col + DIREC_DISTS[direc][1]
+            row = seg.row + direc_dists[direc][0]
+            col = seg.col + direc_dists[direc][1]
             
             if self.gameboard.is_blocked(row, col):
                 return False
@@ -61,9 +75,12 @@ class Snake:
         return True
     
     def grow(self, length):
+        if not self.active:
+            return
+    
         for i in range(length):
-            row = self.tail.row - DIREC_DISTS[self.tail.direc][0]
-            col = self.tail.col - DIREC_DISTS[self.tail.direc][1]
+            row = self.tail.row - direc_dists[self.tail.direc][0]
+            col = self.tail.col - direc_dists[self.tail.direc][1]
             
             is_wall = self.gameboard.get_marker(row, col) == Markers.WALL
             is_snake = self.gameboard.get_marker(row, col) == Markers.SNAKE

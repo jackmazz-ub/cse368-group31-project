@@ -1,15 +1,12 @@
 import pygame
 from enum import IntEnum
 
-# initial grid position
 GRID_X = 0
 GRID_Y = 0
 
-# size of each cell in the grid
 CELL_WIDTH = 10
 CELL_HEIGHT = 10
 
-# style settings
 BACKGROUND_COLOR = (0, 0, 0)
 TEXT_COLOR = (255, 255, 255)
 FLOOR_COLOR = (0, 0, 0)
@@ -17,19 +14,23 @@ WALL_COLOR = (0, 0, 255)
 APPLE_COLOR = (255, 0, 0)
 SNAKE_COLOR = (0, 255, 0)
 
-# used to identify the type of content within a cell
+PURPLE_COLOR = (255, 0, 255) # debug purposes
+
 class Markers(IntEnum):
     FLOOR = 0
     WALL = 1
     APPLE = 2
     SNAKE = 3
+    
+    PURPLE = 4 # debug purposes
 
-# map markers to colors
-MARKER_COLORS = {
+marker_colors = {
     Markers.FLOOR: FLOOR_COLOR,
     Markers.WALL: WALL_COLOR,
     Markers.APPLE: APPLE_COLOR,
     Markers.SNAKE: SNAKE_COLOR,
+    
+    Markers.PURPLE: PURPLE_COLOR, # debug purposes
 }
 
 class Gameboard:
@@ -38,7 +39,6 @@ class Gameboard:
         self.rows = rows
         self.cols = cols
         
-        # initialize all markers to floor (no content)
         for i in range(rows):
             self.markers.append([])
             for j in range(cols):
@@ -47,20 +47,16 @@ class Gameboard:
     def draw(self, screen):
         screen.fill(BACKGROUND_COLOR)
         
-        # iterate by +2 to add a layer of walls around the grid
         for i in range(self.rows+2):
             for j in range(self.cols+2):
-            
-                # calculate cell position given a row and column
                 x = GRID_X + j * CELL_WIDTH
                 y = GRID_Y + i * CELL_HEIGHT
                 rect = (x, y, CELL_WIDTH, CELL_HEIGHT)
                 
-                # decrement row and column (needed to offset walls)
                 row = i-1
                 col = j-1
                 
-                color = MARKER_COLORS[self.get_marker(row, col)]
+                color = marker_colors[self.get_marker(row, col)]
                 pygame.draw.rect(screen, color, rect)
         
         pygame.display.update()
@@ -74,7 +70,7 @@ class Gameboard:
         return Markers.WALL
     
     def set_marker(self, row, col, marker):
-        if self.get_marker != Markers.WALL:
+        if self.get_marker(row, col) != Markers.WALL:
             self.markers[row][col] = marker
     
     def is_blocked(self, row, col):
