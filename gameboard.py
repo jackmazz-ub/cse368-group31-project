@@ -14,23 +14,17 @@ WALL_COLOR = (0, 0, 255)
 APPLE_COLOR = (255, 0, 0)
 SNAKE_COLOR = (0, 255, 0)
 
-PURPLE_COLOR = (255, 0, 255) # debug purposes
-
 class Markers(IntEnum):
     FLOOR = 0
     WALL = 1
     APPLE = 2
     SNAKE = 3
-    
-    PURPLE = 4 # debug purposes
 
 marker_colors = {
     Markers.FLOOR: FLOOR_COLOR,
     Markers.WALL: WALL_COLOR,
     Markers.APPLE: APPLE_COLOR,
     Markers.SNAKE: SNAKE_COLOR,
-    
-    Markers.PURPLE: PURPLE_COLOR, # debug purposes
 }
 
 class Gameboard:
