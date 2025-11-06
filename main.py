@@ -22,7 +22,7 @@ FOOTER_PRCT = 0.1
 
 TICK_RATE = 60
 
-SNAKE_LENGTH = 40
+SNAKE_LENGTH = 4
 
 screen = None
 display_info = None
