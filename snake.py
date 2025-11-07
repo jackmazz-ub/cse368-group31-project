@@ -40,6 +40,11 @@ class Snake:
         
         self.active = False
     
+    def crash(self):
+        row = self.head.row
+        col = self.head.col
+        self.gameboard.set_marker(row, col, Markers.SNAKE_CRASH)
+    
     def move(self, direc):
         if not self.active:
             return False
@@ -48,7 +53,7 @@ class Snake:
             direc = self.head.direc
         
         if direc == -1*self.head.direc:
-            return False
+            return True
     
         seg = self.head
         while seg is not None:

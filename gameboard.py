@@ -7,24 +7,22 @@ GRID_Y = 0
 CELL_WIDTH = 10
 CELL_HEIGHT = 10
 
-BACKGROUND_COLOR = (0, 0, 0)
-TEXT_COLOR = (255, 255, 255)
-FLOOR_COLOR = (0, 0, 0)
-WALL_COLOR = (0, 0, 255)
-APPLE_COLOR = (255, 0, 0)
-SNAKE_COLOR = (0, 255, 0)
+BG_COLOR = (0, 0, 0)
+FG_COLOR = (255, 255, 255)
 
 class Markers(IntEnum):
     FLOOR = 0
     WALL = 1
     APPLE = 2
     SNAKE = 3
+    SNAKE_CRASH = 4
 
 marker_colors = {
-    Markers.FLOOR: FLOOR_COLOR,
-    Markers.WALL: WALL_COLOR,
-    Markers.APPLE: APPLE_COLOR,
-    Markers.SNAKE: SNAKE_COLOR,
+    Markers.FLOOR: (0, 0, 0),
+    Markers.WALL: (0, 0, 255),
+    Markers.APPLE: (255, 255, 0),
+    Markers.SNAKE: (0, 255, 0),
+    Markers.SNAKE_CRASH: (255, 0, 0),
 }
 
 class Gameboard:
@@ -39,7 +37,7 @@ class Gameboard:
                 self.markers[i].append(Markers.FLOOR)
 
     def draw(self, screen):
-        screen.fill(BACKGROUND_COLOR)
+        screen.fill(BG_COLOR)
         
         for i in range(self.rows+2):
             for j in range(self.cols+2):
