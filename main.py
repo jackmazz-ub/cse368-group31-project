@@ -14,15 +14,16 @@ SCREEN_HEIGHT = 540
 FULLSCREEN = False
 VSYNC = True
 
-ROW_SECT_PRCT = 0.5
-COL_SECT_PRCT = 0.325
-ROW_MARGIN_PRCT = 0.05
-COL_MARGIN_PRCT = 0.05
-FOOTER_PRCT = 0.1
+V_SPAWN_PCT = 0.5
+H_SPAWN_PCT = 0.325
+FOOTER_PCT = 0.1
 
-TICK_RATE = 60
+TICKRATE = 60
+CRASH_DELAY = 50
 
-SNAKE_LENGTH = 4
+CRASH_EVENT = pygame.USEREVENT
+
+SNAKE_INIT_LENGTH = 4
 
 screen = None
 display_info = None
@@ -33,51 +34,58 @@ grid_cols = None
 
 snake = None
 snake_direc = None
+snake_crashing = None
 
 active = None
+game_over = None
 
 def init_gameboard():
     global gameboard
     global grid_rows
     global grid_cols
     
-    grid_rows = int(display_info.current_h//CELL_HEIGHT * (1-FOOTER_PRCT)) - 2
+    grid_rows = int(display_info.current_h//CELL_HEIGHT * (1-FOOTER_PCT)) - 2
     grid_cols = display_info.current_w//CELL_WIDTH - 2
     
     gameboard = Gameboard(grid_rows, grid_cols)
 
 def init_snake():
     global snake
+    global snake_crashing
     
     if snake is not None:
         snake.destroy()
     
-    row = random.randint(SNAKE_LENGTH, grid_rows-SNAKE_LENGTH-1)
-    col = random.randint(SNAKE_LENGTH, grid_cols-SNAKE_LENGTH-1)
+    length = SNAKE_INIT_LENGTH
+    row = random.randint(length, grid_rows-length-1)
+    col = random.randint(length, grid_cols-length-1)
     
-    row_sect = int(grid_rows * ROW_SECT_PRCT)
-    col_sect = int(grid_cols * COL_SECT_PRCT)
+    v_spawn = int(grid_rows * V_SPAWN_PCT)
+    h_spawn = int(grid_cols * H_SPAWN_PCT)
     
     direc = None
-    if col < col_sect:
+    if col < h_spawn:
         direc = Directions.EAST
-    elif col > grid_cols - col_sect:
+    elif col > grid_cols - h_spawn:
         direc = Directions.WEST
-    elif row < row_sect:
+    elif row < v_spawn:
         direc = Directions.SOUTH
-    elif row > grid_rows - row_sect:
+    elif row > grid_rows - v_spawn:
         direc = Directions.NORTH
     else:
         direc = random.randint(1, 2)
         if (random.random() <= 0.5):
             direc *= -1
     
-    snake = Snake(gameboard, SNAKE_LENGTH, row, col, direc)
+    snake = Snake(gameboard, length, row, col, direc)
+    snake_crashing = False
 
 def on_keyup(event):
     global active
+    global game_over
     
     if event.key == pygame.K_r:
+        game_over = False
         init_snake()
     elif event.key == pygame.K_F11:
         toggle_fullscreen()
@@ -95,6 +103,9 @@ def on_keydown(event):
         snake_direc = Directions.SOUTH
     elif event.key == pygame.K_RIGHT or event.key == pygame.K_d:
         snake_direc = Directions.EAST
+        
+    elif event.key == pygame.K_g: # dev purposes
+        snake.grow(10)
 
 def toggle_fullscreen():
     global screen
@@ -109,10 +120,12 @@ def toggle_fullscreen():
 def main(argv):
     global screen
     global display_info
+    
     global gameboard
     global snake_direc
     
     global active
+    global game_over
     
     os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (SCREEN_X, SCREEN_Y)
     
@@ -129,21 +142,30 @@ def main(argv):
     clock = pygame.time.Clock()
     
     active = True
+    game_over = False
     while active:
         gameboard.draw(screen)
         
         for event in pygame.event.get():
-            if event.type == pygame.KEYUP:
+            if event.type == CRASH_EVENT and snake_crashing:
+                game_over = True
+                snake.crash()
+            elif event.type == pygame.KEYUP:
                 on_keyup(event)
             elif event.type == pygame.KEYDOWN:
                 on_keydown(event)
             elif event.type == pygame.QUIT:
                 active = False
         
-        snake.move(snake_direc)
-        snake_direc = None
+        if not game_over:
+            if snake.move(snake_direc):
+                snake_crashing = False
+                snake_direc = None
+            elif not snake_crashing:
+                snake_crashing = True
+                pygame.time.set_timer(CRASH_EVENT, CRASH_DELAY)
         
-        clock.tick(TICK_RATE)
+        clock.tick(TICKRATE)
 
     pygame.quit()
     return 0
