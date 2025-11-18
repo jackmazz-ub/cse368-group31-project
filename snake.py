@@ -52,8 +52,9 @@ class Snake:
         if direc is None:
             direc = self.head.direc
 
+        # If trying to move opposite direction, ignore and continue in current direction
         if direc == -1*self.head.direc:
-            return True
+            direc = self.head.direc
 
         # Check if the head will move onto an apple
         new_head_row = self.head.row + direc_dists[direc][0]

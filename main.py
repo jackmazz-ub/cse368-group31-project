@@ -2,7 +2,6 @@ import pygame
 import random
 import sys
 import os
-import time
 
 from gameboard import Gameboard, CELL_WIDTH, CELL_HEIGHT, Markers
 from snake import Snake, Directions
@@ -40,6 +39,7 @@ snake_crashing = None
 
 active = None
 game_over = None
+start_time = None
 
 def init_gameboard():
     global gameboard
@@ -107,10 +107,12 @@ def init_snake():
 def on_keyup(event):
     global active
     global game_over
-    
+    global start_time
+
     if event.key == pygame.K_r:
         game_over = False
         init_snake()
+        start_time = pygame.time.get_ticks() / 1000.0  # Reset timer
     elif event.key == pygame.K_F11:
         toggle_fullscreen()
     elif event.key == pygame.K_ESCAPE:
@@ -141,16 +143,17 @@ def toggle_fullscreen():
         vsync=VSYNC,
     )
 
-def main(argv):
+def main():
     global screen
     global display_info
-    
+
     global gameboard
     global snake_direc
-    
+
     global active
     global game_over
-    
+    global start_time
+
     os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (SCREEN_X, SCREEN_Y)
 
     pygame.init()
@@ -160,7 +163,7 @@ def main(argv):
         pygame.FULLSCREEN if FULLSCREEN else pygame.RESIZABLE,
         vsync=VSYNC,
     )
-    
+
     init_gameboard()
     init_snake()
     spawn_apple()  # Spawn initial apple
@@ -169,10 +172,17 @@ def main(argv):
     # Set up the movement timer
     pygame.time.set_timer(MOVE_EVENT, SNAKE_MOVE_DELAY)
 
+    # Initialize timer
+    start_time = pygame.time.get_ticks() / 1000.0
+
     active = True
     game_over = False
     while active:
-        gameboard.draw(screen, snake.length)
+        # Calculate elapsed time
+        current_time = pygame.time.get_ticks() / 1000.0
+        elapsed_time = current_time - start_time if not game_over else elapsed_time
+
+        gameboard.draw(screen, snake.length, elapsed_time)
 
         for event in pygame.event.get():
             if event.type == CRASH_EVENT and snake_crashing:
@@ -204,5 +214,5 @@ def main(argv):
     return 0
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    sys.exit(main())
 
