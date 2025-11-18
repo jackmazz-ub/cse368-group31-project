@@ -48,36 +48,42 @@ class Snake:
     def move(self, direc):
         if not self.active:
             return False
-    
+
         if direc is None:
             direc = self.head.direc
-        
+
         if direc == -1*self.head.direc:
             return True
-    
+
+        # Check if the head will move onto an apple
+        new_head_row = self.head.row + direc_dists[direc][0]
+        new_head_col = self.head.col + direc_dists[direc][1]
+        ate_apple = self.gameboard.get_marker(new_head_row, new_head_col) == Markers.APPLE
+
         seg = self.head
         while seg is not None:
             row = seg.row + direc_dists[direc][0]
             col = seg.col + direc_dists[direc][1]
-            
+
             if self.gameboard.is_blocked(row, col):
                 return False
-            
+
             prev_row = seg.row
             prev_col = seg.col
             seg.row = row
             seg.col = col
-            
+
             direc_swap = seg.direc
             seg.direc = direc
             direc = direc_swap
-            
+
             seg = seg.link
-            
+
             self.gameboard.set_marker(row, col, Markers.SNAKE)
             self.gameboard.set_marker(prev_row, prev_col, Markers.FLOOR)
-        
-        return True
+
+        # Return True if moved successfully, or "apple" if ate an apple
+        return "apple" if ate_apple else True
     
     def grow(self, length):
         if not self.active:
