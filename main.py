@@ -40,6 +40,7 @@ snake_crashing = None
 active = None
 game_over = None
 start_time = None
+score = None
 
 def init_gameboard():
     global gameboard
@@ -108,11 +109,13 @@ def on_keyup(event):
     global active
     global game_over
     global start_time
+    global score
 
     if event.key == pygame.K_r:
         game_over = False
         init_snake()
         start_time = pygame.time.get_ticks() / 1000.0  # Reset timer
+        score = 0  # Reset score
     elif event.key == pygame.K_F11:
         toggle_fullscreen()
     elif event.key == pygame.K_ESCAPE:
@@ -153,6 +156,7 @@ def main():
     global active
     global game_over
     global start_time
+    global score
 
     os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (SCREEN_X, SCREEN_Y)
 
@@ -172,8 +176,9 @@ def main():
     # Set up the movement timer
     pygame.time.set_timer(MOVE_EVENT, SNAKE_MOVE_DELAY)
 
-    # Initialize timer
+    # Initialize timer and score
     start_time = pygame.time.get_ticks() / 1000.0
+    score = 0
 
     active = True
     game_over = False
@@ -182,7 +187,7 @@ def main():
         current_time = pygame.time.get_ticks() / 1000.0
         elapsed_time = current_time - start_time if not game_over else elapsed_time
 
-        gameboard.draw(screen, snake.length, elapsed_time)
+        gameboard.draw(screen, score, elapsed_time)
 
         for event in pygame.event.get():
             if event.type == CRASH_EVENT and snake_crashing:
@@ -197,6 +202,7 @@ def main():
                     # Check if snake ate an apple
                     if move_result == "apple":
                         snake.grow(1)
+                        score += 1  # Increment score
                         spawn_apple()  # Spawn new apple
                 elif not snake_crashing:
                     snake_crashing = True
