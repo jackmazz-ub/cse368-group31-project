@@ -3,7 +3,7 @@ import random
 import sys
 import os
 
-from gameboard import Gameboard, CELL_WIDTH, CELL_HEIGHT, Markers
+from gameboard import Gameboard, Markers
 from snake import Snake, Directions
 
 SCREEN_X = 0
@@ -15,7 +15,6 @@ VSYNC = True
 
 V_SPAWN_PCT = 0.5
 H_SPAWN_PCT = 0.325
-FOOTER_PCT = 0.1
 
 TICKRATE = 60
 CRASH_DELAY = 50
@@ -47,12 +46,9 @@ def init_gameboard():
     global grid_rows
     global grid_cols
 
-    # Use window size instead of display size
-    window_width = SCREEN_WIDTH if not FULLSCREEN else display_info.current_w
-    window_height = SCREEN_HEIGHT if not FULLSCREEN else display_info.current_h
-
-    grid_rows = int(window_height//CELL_HEIGHT * (1-FOOTER_PCT)) - 2
-    grid_cols = window_width//CELL_WIDTH - 2
+    # Fixed grid size for consistency across all devices
+    grid_rows = 40
+    grid_cols = 80
 
     gameboard = Gameboard(grid_rows, grid_cols)
 
