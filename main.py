@@ -4,26 +4,27 @@ import sys
 import os
 import time
 
-from gameboard import Gameboard, CELL_WIDTH, CELL_HEIGHT
+from gameboard import Gameboard, CELL_WIDTH, CELL_HEIGHT, Markers
 from snake import Snake, Directions
 
 SCREEN_X = 0
 SCREEN_Y = 0
 SCREEN_WIDTH = 960
 SCREEN_HEIGHT = 540
-FULLSCREEN = False
+FULLSCREEN = True
 VSYNC = True
 
 V_SPAWN_PCT = 0.5
 H_SPAWN_PCT = 0.325
 FOOTER_PCT = 0.1
 
-TICKRATE = 60
+TICKRATE = 30
 CRASH_DELAY = 50
 
 CRASH_EVENT = pygame.USEREVENT
 
 SNAKE_INIT_LENGTH = 4
+SNAKE_GROW_RATE = 5
 
 screen = None
 display_info = None
@@ -43,26 +44,50 @@ def init_gameboard():
     global gameboard
     global grid_rows
     global grid_cols
-    
-    grid_rows = int(display_info.current_h//CELL_HEIGHT * (1-FOOTER_PCT)) - 2
-    grid_cols = display_info.current_w//CELL_WIDTH - 2
-    
+
+    # Use window size instead of display size
+    window_width = SCREEN_WIDTH if not FULLSCREEN else display_info.current_w
+    window_height = SCREEN_HEIGHT if not FULLSCREEN else display_info.current_h
+
+    grid_rows = int(window_height//CELL_HEIGHT * (1-FOOTER_PCT)) - 2
+    grid_cols = window_width//CELL_WIDTH - 2
+
     gameboard = Gameboard(grid_rows, grid_cols)
+    
+    spawn_apple()
+
+def spawn_apple():
+    """Spawn an apple at a random empty location on the gameboard"""
+    empty_cells = []
+
+    # Find all empty cells
+    for row in range(grid_rows):
+        for col in range(grid_cols):
+            if gameboard.get_marker(row, col) == Markers.FLOOR:
+                empty_cells.append((row, col))
+
+    # Spawn apple at random empty cell
+    if empty_cells:
+        row, col = random.choice(empty_cells)
+        gameboard.set_marker(row, col, Markers.APPLE)
+        return True
+
+    return False
 
 def init_snake():
     global snake
     global snake_crashing
-    
+
     if snake is not None:
         snake.destroy()
-    
+
     length = SNAKE_INIT_LENGTH
     row = random.randint(length, grid_rows-length-1)
     col = random.randint(length, grid_cols-length-1)
-    
+
     v_spawn = int(grid_rows * V_SPAWN_PCT)
     h_spawn = int(grid_cols * H_SPAWN_PCT)
-    
+
     direc = None
     if col < h_spawn:
         direc = Directions.EAST
@@ -76,7 +101,7 @@ def init_snake():
         direc = random.randint(1, 2)
         if (random.random() <= 0.5):
             direc *= -1
-    
+
     snake = Snake(gameboard, length, row, col, direc)
     snake_crashing = False
 
@@ -103,13 +128,10 @@ def on_keydown(event):
         snake_direc = Directions.SOUTH
     elif event.key == pygame.K_RIGHT or event.key == pygame.K_d:
         snake_direc = Directions.EAST
-        
-    elif event.key == pygame.K_g: # dev purposes
-        snake.grow(10)
 
 def toggle_fullscreen():
     global screen
-    
+
     fullscreen = screen.get_flags() & pygame.FULLSCREEN != 0
     screen = pygame.display.set_mode(
         (SCREEN_WIDTH, SCREEN_HEIGHT),
@@ -128,7 +150,7 @@ def main(argv):
     global game_over
     
     os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (SCREEN_X, SCREEN_Y)
-    
+
     pygame.init()
     display_info = pygame.display.Info()
     screen = pygame.display.set_mode(
@@ -141,10 +163,17 @@ def main(argv):
     init_snake()
     clock = pygame.time.Clock()
     
+    # Initialize timer
+    start_time = pygame.time.get_ticks() / 1000.0
+
     active = True
     game_over = False
     while active:
-        gameboard.draw(screen)
+        # Calculate elapsed time
+        current_time = pygame.time.get_ticks() / 1000.0
+        elapsed_time = current_time - start_time if not game_over else elapsed_time
+
+        gameboard.draw(screen, snake.length, elapsed_time)
         
         for event in pygame.event.get():
             if event.type == CRASH_EVENT and snake_crashing:
@@ -158,7 +187,12 @@ def main(argv):
                 active = False
         
         if not game_over:
-            if snake.move(snake_direc):
+            success, ate_apple = snake.move(snake_direc)
+            
+            if success:
+                if ate_apple:
+                    snake.grow(SNAKE_GROW_RATE)
+                    spawn_apple()  # Spawn new apple
                 snake_crashing = False
                 snake_direc = None
             elif not snake_crashing:
