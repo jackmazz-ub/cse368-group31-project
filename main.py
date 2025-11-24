@@ -47,8 +47,8 @@ def init_gameboard():
     global grid_cols
 
     # Fixed grid size for consistency across all devices
-    grid_rows = 40
-    grid_cols = 80
+    grid_rows = 45
+    grid_cols = 90
 
     gameboard = Gameboard(grid_rows, grid_cols)
 
@@ -197,7 +197,7 @@ def main():
 
                     # Check if snake ate an apple
                     if move_result == "apple":
-                        snake.grow(1)
+                        snake.grow(3)
                         score += 1  # Increment score
                         spawn_apple()  # Spawn new apple
                 elif not snake_crashing:
