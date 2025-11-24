@@ -3,20 +3,20 @@ import random
 import sys
 import os
 
-from gameboard import Gameboard, Markers
+from gameboard import Gameboard, CELL_WIDTH, CELL_HEIGHT, Markers
 from snake import Snake, Directions
 
 SCREEN_X = 0
 SCREEN_Y = 0
 SCREEN_WIDTH = 960
 SCREEN_HEIGHT = 540
-FULLSCREEN = False
+FULLSCREEN = True
 VSYNC = True
 
 V_SPAWN_PCT = 0.5
 H_SPAWN_PCT = 0.325
 
-TICKRATE = 60
+TICKRATE = 30
 CRASH_DELAY = 50
 SNAKE_MOVE_DELAY = 100  # milliseconds between snake moves (lower = faster)
 
@@ -24,6 +24,7 @@ CRASH_EVENT = pygame.USEREVENT
 MOVE_EVENT = pygame.USEREVENT + 1
 
 SNAKE_INIT_LENGTH = 4
+SNAKE_GROW_RATE = 5
 
 screen = None
 display_info = None
@@ -46,11 +47,34 @@ def init_gameboard():
     global grid_rows
     global grid_cols
 
-    # Fixed grid size for consistency across all devices
-    grid_rows = 45
-    grid_cols = 90
+    # Use window size instead of display size
+    window_width = SCREEN_WIDTH if not FULLSCREEN else display_info.current_w
+    window_height = SCREEN_HEIGHT if not FULLSCREEN else display_info.current_h
+
+    grid_rows = int(window_height//CELL_HEIGHT * (1-FOOTER_PCT)) - 2
+    grid_cols = window_width//CELL_WIDTH - 2
 
     gameboard = Gameboard(grid_rows, grid_cols)
+    
+    spawn_apple()
+
+def spawn_apple():
+    """Spawn an apple at a random empty location on the gameboard"""
+    empty_cells = []
+
+    # Find all empty cells
+    for row in range(grid_rows):
+        for col in range(grid_cols):
+            if gameboard.get_marker(row, col) == Markers.FLOOR:
+                empty_cells.append((row, col))
+
+    # Spawn apple at random empty cell
+    if empty_cells:
+        row, col = random.choice(empty_cells)
+        gameboard.set_marker(row, col, Markers.APPLE)
+        return True
+
+    return False
 
 def spawn_apple():
     """Spawn an apple at a random empty location on the gameboard"""
@@ -128,9 +152,6 @@ def on_keydown(event):
         snake_direc = Directions.SOUTH
     elif event.key == pygame.K_RIGHT or event.key == pygame.K_d:
         snake_direc = Directions.EAST
-        
-    elif event.key == pygame.K_g: # dev purposes
-        snake.grow(10)
 
 def toggle_fullscreen():
     global screen
@@ -168,13 +189,9 @@ def main():
     init_snake()
     spawn_apple()  # Spawn initial apple
     clock = pygame.time.Clock()
-
-    # Set up the movement timer
-    pygame.time.set_timer(MOVE_EVENT, SNAKE_MOVE_DELAY)
-
-    # Initialize timer and score
+    
+    # Initialize timer
     start_time = pygame.time.get_ticks() / 1000.0
-    score = 0
 
     active = True
     game_over = False
@@ -183,8 +200,8 @@ def main():
         current_time = pygame.time.get_ticks() / 1000.0
         elapsed_time = current_time - start_time if not game_over else elapsed_time
 
-        gameboard.draw(screen, score, elapsed_time)
-
+        gameboard.draw(screen, snake.length, elapsed_time)
+        
         for event in pygame.event.get():
             if event.type == CRASH_EVENT and snake_crashing:
                 game_over = True
@@ -209,7 +226,20 @@ def main():
                 on_keydown(event)
             elif event.type == pygame.QUIT:
                 active = False
-
+        
+        if not game_over:
+            success, ate_apple = snake.move(snake_direc)
+            
+            if success:
+                if ate_apple:
+                    snake.grow(SNAKE_GROW_RATE)
+                    spawn_apple()  # Spawn new apple
+                snake_crashing = False
+                snake_direc = None
+            elif not snake_crashing:
+                snake_crashing = True
+                pygame.time.set_timer(CRASH_EVENT, CRASH_DELAY)
+        
         clock.tick(TICKRATE)
 
     pygame.quit()

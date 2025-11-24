@@ -8,6 +8,7 @@ CELL_WIDTH = 10
 CELL_HEIGHT = 10
 
 BG_COLOR = (0, 0, 0)
+FG_COLOR = (255, 255, 255)
 SCORE_COLOR = (255, 255, 255)
 
 class Markers(IntEnum):
@@ -73,6 +74,17 @@ class Gameboard:
                 text_surface = self.font.render(timer_text, True, SCORE_COLOR)
                 # Position timer to the right of score
                 screen.blit(text_surface, (250, score_y))
+
+        # Draw timer
+        if elapsed_time is not None:
+            minutes = int(elapsed_time // 60)
+            seconds = int(elapsed_time % 60)
+            
+            timer_text = f"Time: {minutes:02d}:{seconds:02d}"
+            text_surface = self.font.render(timer_text, True, SCORE_COLOR)
+            
+            # Position timer to the right of score
+            screen.blit(text_surface, (250, score_y))
 
         pygame.display.update()
     
