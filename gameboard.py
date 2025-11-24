@@ -35,7 +35,7 @@ class Gameboard:
 
         for i in range(rows):
             self.markers.append([])
-            for j in range(cols):
+            for _ in range(cols):
                 self.markers[i].append(Markers.FLOOR)
 
     def draw(self, screen, score=None, elapsed_time=None):
