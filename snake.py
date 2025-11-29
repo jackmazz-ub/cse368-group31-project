@@ -129,7 +129,7 @@ class Snake:
             
             # stop adding segments if snake will go OOB, or into a snake body
             # return number of segments added up to this point
-            if self.gameboard.is_blocked():
+            if self.gameboard.is_blocked(row, col):
                 return i
             
             self.tail.link = Segment(row, col, self.tail.direc)
