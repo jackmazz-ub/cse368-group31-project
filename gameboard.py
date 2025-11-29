@@ -62,7 +62,7 @@ class Gameboard:
             for j in range(cols):
                 self.markers[i].append(Markers.FLOOR)
                 
-    def draw(self, screen, score=None, elapsed_time=None):
+    def draw(self, screen, game_mode=None, score=None, elapsed_time=None):
         screen.fill(BG_COLOR) # draw the background
         
         # draw each cell depending on it's marker
@@ -80,11 +80,14 @@ class Gameboard:
                 pygame.draw.rect(screen, color, rect)
 
         # draw scoreboard and timer
-        if score is not None or elapsed_time is not None:
+        if game_mode is not None or score is not None or elapsed_time is not None:
             if self.font is None:
                 self.font = pygame.font.Font(FONT_FILEPATH, FONT_SIZE)
 
             score_y = (self.rows + 2) * CELL_HEIGHT + 10
+            
+            game_mode_x = (self.cols + 2) * CELL_WIDTH - 10
+            game_mode_y = (self.rows + 2) * CELL_HEIGHT + 10
 
             # draw score
             if score is not None:
@@ -100,6 +103,11 @@ class Gameboard:
                 timer_text = f"Time: {minutes:02d}:{seconds:02d}"
                 text_surface = self.font.render(timer_text, True, FG_COLOR)
                 screen.blit(text_surface, (300, score_y))  # position timer to the right of score
+            
+            # draw game mode
+            if game_mode is not None:
+                text_surface = self.font.render(game_mode, True, FG_COLOR)
+                screen.blit(text_surface, (game_mode_x-text_surface.get_width(), game_mode_y))
         
         """
         # draw timer

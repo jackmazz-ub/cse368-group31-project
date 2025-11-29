@@ -5,6 +5,7 @@ import os
 import time
 from enum import IntEnum
 
+from agent import Agent
 from gameboard import Gameboard, CELL_WIDTH, CELL_HEIGHT, Markers
 from snake import Snake, Directions
 
@@ -20,7 +21,7 @@ SCREEN_X = 0
 SCREEN_Y = 0
 SCREEN_WIDTH = 960
 SCREEN_HEIGHT = 540
-FULLSCREEN = False
+FULLSCREEN = True
 VSYNC = True
 
 # snake spawn settings
@@ -41,6 +42,23 @@ SNAKE_GROW_RATE = 5 # growth per apple
 
 """
 =====================================================================================================
+| HELPER CLASSES |
+==================
+"""
+
+# identifiers for the game modes
+class GameModes(IntEnum):
+    MANUAL = 0
+    AUTO = 1
+
+# map game modes to titles
+game_mode_titles = {
+    GameModes.MANUAL: "Manual",
+    GameModes.AUTO: "Autonomous"
+}
+
+"""
+=====================================================================================================
 | GLOBAL VARIABLES |
 ====================
 """
@@ -56,8 +74,11 @@ snake = None
 snake_direc = None # current snake direction
 snake_crashing = None # bool if snake is currently crashing (waiting on a CRASH_EVENT for CRASH_DELAY ms)
 
+agent = None
+
 active = None # bool if the app is supposed to be running (app closes once this becomes false)
 game_over = None # bool if the game has ended and pending a restart
+game_mode = None # manual or autonomous modes
 
 """
 =====================================================================================================
@@ -116,18 +137,23 @@ def init_snake():
     h_spawn = int(grid_cols * H_SPAWN_PCT) # defines the height of the North and South sectors
     
     direc = None
+    
     # start facing East if spawning in the West Sector
     if col < h_spawn:
         direc = Directions.EAST
+        
     # start facing West if spawning in the East Sector
     elif col > grid_cols - h_spawn:
         direc = Directions.WEST
+        
     # start facing South if spawning in the North Sector
     elif row < v_spawn:
         direc = Directions.SOUTH
+        
     # start facing North if spawning in the South Sector
     elif row > grid_rows - v_spawn:
         direc = Directions.NORTH
+        
     # start in a random direction if not spawning in any sectors
     else:
         direc = random.randint(1, 2)
@@ -136,6 +162,10 @@ def init_snake():
 
     snake = Snake(gameboard, length, row, col, direc)
     snake_crashing = False
+
+def init_agent():
+    global agent
+    agent = Agent()
 
 def spawn_apple():
     # spawn an apple at a random empty location on the gameboard
@@ -164,14 +194,29 @@ def spawn_apple():
 def on_keyup(event):
     global active
     global game_over
+    global game_mode
     
     # restart the game on 'R' key-release
     if event.key == pygame.K_r:
         game_over = False
         init_snake()
+        
+    # start manual game on 'F1' key-release
+    elif event.key == pygame.K_F1:
+        game_over = False
+        game_mode = GameModes.MANUAL
+        init_snake()
+        
+    # start autonomous game on 'F2' key-release
+    elif event.key == pygame.K_F2:
+        game_over = False
+        game_mode = GameModes.AUTO
+        init_snake()
+        
     # toggle fullscreen on 'F11' key-release
     elif event.key == pygame.K_F11:
         toggle_fullscreen()
+        
     # exit game on 'ESC' key-release
     elif event.key == pygame.K_ESCAPE:
         active = False
@@ -183,18 +228,22 @@ def on_keyup(event):
 def on_keydown(event):
     global snake_direc
     
-    # change snake direction to North on 'W' or 'Up-Arrow' key-press
-    if event.key == pygame.K_UP or event.key == pygame.K_w:
-        snake_direc = Directions.NORTH
-    # change snake direction to West on 'A' or 'Left-Arrow' key-press
-    elif event.key == pygame.K_LEFT or event.key == pygame.K_a:
-        snake_direc = Directions.WEST
-    # change snake direction to South on 'S' or 'Down-Arrow' key-press
-    elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
-        snake_direc = Directions.SOUTH
-    # change snake direction to East on 'D' or 'Right-Arrow' key-press
-    elif event.key == pygame.K_RIGHT or event.key == pygame.K_d:
-        snake_direc = Directions.EAST
+    if game_mode == GameModes.MANUAL:
+        # change snake direction to North on 'W' or 'Up-Arrow' key-press
+        if event.key == pygame.K_UP or event.key == pygame.K_w:
+            snake_direc = Directions.NORTH
+            
+        # change snake direction to West on 'A' or 'Left-Arrow' key-press
+        elif event.key == pygame.K_LEFT or event.key == pygame.K_a:
+            snake_direc = Directions.WEST
+            
+        # change snake direction to South on 'S' or 'Down-Arrow' key-press
+        elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
+            snake_direc = Directions.SOUTH
+            
+        # change snake direction to East on 'D' or 'Right-Arrow' key-press
+        elif event.key == pygame.K_RIGHT or event.key == pygame.K_d:
+            snake_direc = Directions.EAST
 
 """
 =====================================================================================================
@@ -228,6 +277,7 @@ def main(argv):
     
     global active
     global game_over
+    global game_mode
     
     os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (SCREEN_X, SCREEN_Y)
 
@@ -244,6 +294,7 @@ def main(argv):
     
     init_gameboard()
     init_snake()
+    init_agent()
     clock = pygame.time.Clock()
     
     # initialize timer
@@ -251,6 +302,7 @@ def main(argv):
     
     active = True
     game_over = False
+    game_mode = GameModes.AUTO
     
     # mainloop
     while active:
@@ -258,8 +310,9 @@ def main(argv):
         # calculate elapsed time
         current_time = pygame.time.get_ticks() / 1000.0
         elapsed_time = current_time - start_time if not game_over else elapsed_time
-
-        gameboard.draw(screen, snake.length, elapsed_time)
+        
+        game_mode_title = game_mode_titles[game_mode]
+        gameboard.draw(screen, game_mode_title, snake.length, elapsed_time)
         
         # activate events
         for event in pygame.event.get():
@@ -273,6 +326,9 @@ def main(argv):
             elif event.type == pygame.QUIT:
                 active = False
         
+        if game_mode == GameModes.AUTO:
+            snake_direc = agent.choose_direction()
+        
         # resume game (if it's not over)
         if not game_over:
         
@@ -283,7 +339,6 @@ def main(argv):
             
             # if the snake moved successfully ...
             if success:
-            
                 # if apple was eaten, grow, and spawn a new one
                 if ate_apple:
                     snake.grow(SNAKE_GROW_RATE)
