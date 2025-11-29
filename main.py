@@ -3,6 +3,7 @@ import random
 import sys
 import os
 import time
+from enum import IntEnum
 
 from gameboard import Gameboard, CELL_WIDTH, CELL_HEIGHT, Markers
 from snake import Snake, Directions
@@ -14,11 +15,12 @@ from snake import Snake, Directions
 """
 
 # display settings
+SCREEN_TITLE = "Q-Snake"
 SCREEN_X = 0
 SCREEN_Y = 0
 SCREEN_WIDTH = 960
 SCREEN_HEIGHT = 540
-FULLSCREEN = True
+FULLSCREEN = False
 VSYNC = True
 
 # snake spawn settings
@@ -167,14 +169,16 @@ def on_keyup(event):
     if event.key == pygame.K_r:
         game_over = False
         init_snake()
-    
     # toggle fullscreen on 'F11' key-release
     elif event.key == pygame.K_F11:
         toggle_fullscreen()
-    
     # exit game on 'ESC' key-release
     elif event.key == pygame.K_ESCAPE:
         active = False
+        
+    # grow snake on 'G' key-release (use only for development purposes)
+    elif event.key == pygame.K_g and snake is not None:
+        snake.grow(5)
 
 def on_keydown(event):
     global snake_direc
@@ -182,15 +186,12 @@ def on_keydown(event):
     # change snake direction to North on 'W' or 'Up-Arrow' key-press
     if event.key == pygame.K_UP or event.key == pygame.K_w:
         snake_direc = Directions.NORTH
-    
     # change snake direction to West on 'A' or 'Left-Arrow' key-press
     elif event.key == pygame.K_LEFT or event.key == pygame.K_a:
         snake_direc = Directions.WEST
-    
     # change snake direction to South on 'S' or 'Down-Arrow' key-press
     elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
         snake_direc = Directions.SOUTH
-    
     # change snake direction to East on 'D' or 'Right-Arrow' key-press
     elif event.key == pygame.K_RIGHT or event.key == pygame.K_d:
         snake_direc = Directions.EAST
@@ -237,6 +238,9 @@ def main(argv):
         pygame.FULLSCREEN if FULLSCREEN else pygame.RESIZABLE,
         vsync=VSYNC,
     )
+    
+    # set the window title
+    pygame.display.set_caption(SCREEN_TITLE)
     
     init_gameboard()
     init_snake()

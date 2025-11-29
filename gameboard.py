@@ -16,6 +16,8 @@ CELL_HEIGHT = 10 # height of each square on the gameboard
 # styling
 BG_COLOR = (0, 0, 0) # background color
 FG_COLOR = (255, 255, 255) # color of text and other foreground elements
+FONT_FILEPATH = None
+FONT_SIZE = 36
 
 """
 =====================================================================================================
@@ -80,13 +82,14 @@ class Gameboard:
         # draw scoreboard and timer
         if score is not None or elapsed_time is not None:
             if self.font is None:
-                self.font = pygame.font.Font(None, 36)
+                self.font = pygame.font.Font(FONT_FILEPATH, FONT_SIZE)
 
             score_y = (self.rows + 2) * CELL_HEIGHT + 10
 
             # draw score
             if score is not None:
-                score_text = f"Score: {score}"
+                pct = max(round(score/(self.rows*self.cols) * 100, 2), 0.01)              
+                score_text = f"Length: {score}  ({pct}%)"
                 text_surface = self.font.render(score_text, True, FG_COLOR)
                 screen.blit(text_surface, (10, score_y))
 
@@ -96,8 +99,9 @@ class Gameboard:
                 seconds = int(elapsed_time % 60)
                 timer_text = f"Time: {minutes:02d}:{seconds:02d}"
                 text_surface = self.font.render(timer_text, True, FG_COLOR)
-                screen.blit(text_surface, (250, score_y))  # position timer to the right of score
-
+                screen.blit(text_surface, (300, score_y))  # position timer to the right of score
+        
+        """
         # draw timer
         if elapsed_time is not None:
             minutes = int(elapsed_time // 60)
@@ -107,6 +111,7 @@ class Gameboard:
             text_surface = self.font.render(timer_text, True, FG_COLOR)
             
             screen.blit(text_surface, (250, score_y)) # position timer to the right of score
+        """
 
         pygame.display.update()
     
