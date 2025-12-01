@@ -49,18 +49,26 @@ marker_colors = {
 ===================
 """
 
+# data object to represent a single cell on the board
+class Cell:
+    def __init__(self, row, col, marker):
+        self.row = row
+        self.col = col
+        self.marker = marker
+
 class Gameboard:
     def __init__(self, rows, cols):
-        self.markers = []
+        self.cells = []
         self.rows = rows
         self.cols = cols
         self.font = None
         
         # initialize the gameboard to contain only floors (empty spaces)
         for i in range(rows):
-            self.markers.append([])
+            self.cells.append([])
             for j in range(cols):
-                self.markers[i].append(Markers.FLOOR)
+                cell = Cell(i, j, Markers.FLOOR)
+                self.cells[i].append(cell)
                 
     def draw(self, screen, game_mode=None, score=None, elapsed_time=None):
         screen.fill(BG_COLOR) # draw the background
@@ -112,19 +120,31 @@ class Gameboard:
 
         pygame.display.update()
     
+    # accumulate cells in a list
+    # include only those whose marker matches 'match' (if provided)
+    def list_cells(self, match=None):
+        cells = []
+        for i in range(self.rows):
+            for j in range(self.cols):
+                cell = self.cells[i][j]
+                if match is None or cell.marker == match:
+                    cells.append(cell)
+        
+        return cells
+    
     # return a marker if in bounds, else return a wall
     def get_marker(self, row, col):
         row_in = row >= 0 and row < self.rows
         col_in = col >= 0 and col < self.cols
         if row_in and col_in:
-            return self.markers[row][col]
+            return self.cells[row][col].marker
         
         return Markers.WALL
     
     # set the marker if not OOB
     def set_marker(self, row, col, marker):
         if self.get_marker(row, col) != Markers.WALL:
-            self.markers[row][col] = marker
+            self.cells[row][col].marker = marker
     
     # determine if a cell is occupied by a wall or snake body
     def is_blocked(self, row, col):

@@ -53,9 +53,14 @@ class Snake:
     # remove self from the gameboard
     # prevent future movements
     def destroy(self):
+        if not self.active:
+            return
+    
         seg = self.head
         while seg is not None:
             self.gameboard.set_marker(seg.row, seg.col, Markers.FLOOR)
+            seg.row = None
+            seg.col = None
             seg = seg.link
         
         self.active = False
@@ -68,7 +73,7 @@ class Snake:
     
     # attempt a move, return false if movement failed
     # return a second boolean if an apple was eaten
-    def move(self, direc):
+    def move(self, direc, apple):
         
         # prevent movement if snake is destroyed
         if not self.active:
@@ -83,9 +88,12 @@ class Snake:
             direc = -1*direc
 
         # check if the head will move onto an apple
+        # if so, remove the apple
         new_head_row = self.head.row + direc_dists[direc][0]
         new_head_col = self.head.col + direc_dists[direc][1]
-        ate_apple = self.gameboard.get_marker(new_head_row, new_head_col) == Markers.APPLE
+        ate_apple = new_head_row == apple.row and new_head_col == apple.col
+        if ate_apple:
+            apple.destroy()
         
         # move all segments in the chain
         seg = self.head
@@ -96,7 +104,7 @@ class Snake:
             # if moving into a blocked cell, return success=false
             if self.gameboard.is_blocked(row, col):
                 return False, False
-
+                
             prev_row = seg.row
             prev_col = seg.col
             seg.row = row

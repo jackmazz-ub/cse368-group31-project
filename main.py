@@ -6,6 +6,7 @@ import time
 from enum import IntEnum
 
 from agent import Agent
+from apple import Apple
 from gameboard import Gameboard, CELL_WIDTH, CELL_HEIGHT, Markers
 from snake import Snake, Directions
 
@@ -21,7 +22,7 @@ SCREEN_X = 0
 SCREEN_Y = 0
 SCREEN_WIDTH = 960
 SCREEN_HEIGHT = 540
-FULLSCREEN = True
+FULLSCREEN = False
 VSYNC = True
 
 # snake spawn settings
@@ -52,14 +53,14 @@ FIXED_GRID_COLS = None # set to None if using variable-sized grid
 """
 
 # identifiers for the game modes
-class GameModes(IntEnum):
+class Gamemodes(IntEnum):
     MANUAL = 0
     AUTO = 1
 
 # map game modes to titles
-game_mode_titles = {
-    GameModes.MANUAL: "Manual",
-    GameModes.AUTO: "Autonomous"
+gamemode_titles = {
+    Gamemodes.MANUAL: "Manual",
+    Gamemodes.AUTO: "Autonomous"
 }
 
 """
@@ -79,14 +80,13 @@ snake = None
 snake_direc = None # current snake direction
 snake_crashing = None # bool if snake is currently crashing (waiting on a CRASH_EVENT for CRASH_DELAY ms)
 
-apple_row = None
-apple_col = None
+apple = None
 
 agent = None
 
 active = None # bool if the app is supposed to be running (app closes once this becomes false)
 game_over = None # bool if the game has ended and pending a restart
-game_mode = None # manual or autonomous modes
+gamemode = None # manual or autonomous modes
 
 time = None # elapsed time
 
@@ -98,18 +98,24 @@ time = None # elapsed time
 
 def restart_game(mode=None):
     global game_over
-    global game_mode
+    global gamemode
     
+    # if the gamemode is not provided, use the current gamemode
     if mode is None:
-        mode = game_mode
-    elif mode == game_mode:
+        mode = gamemode
+    
+    # if the provided gamemode is the same as the current one, take no effect
+    elif mode == gamemode:
         return
 
     game_over = False
-    game_mode = mode
+    gamemode = mode
     init_snake()
-    spawn_apple()
+    init_apple()
     init_timer()
+    
+    agent.snake = snake
+    agent.apple = apple
 
 def init_gameboard():
     global gameboard
@@ -194,39 +200,29 @@ def init_snake():
     snake = Snake(gameboard, length, row, col, direc)
     snake_crashing = False
 
-def spawn_apple():
-    global apple_row
-    global apple_col
+def init_apple():
+    global apple
+    global game_over
     
-    # remove apple if it exists
-    if apple_row is not None and apple_col is not None:
-        gameboard.set_marker(apple_row, apple_col, Markers.FLOOR)
-        apple_row = None
-        apple_col = None
-
-    # spawn an apple at a random empty location on the gameboard
-    empty_cells = []
-
-    # find all empty cells
-    for row in range(grid_rows):
-        for col in range(grid_cols):
-            if gameboard.get_marker(row, col) == Markers.FLOOR:
-                empty_cells.append((row, col))
+    # remove current apple if it exists
+    if apple is not None:
+        apple.destroy()
+    
+    # find all possible positions (not occupied by anything)
+    # if none are found, end the game (the player won)
+    empty_cells = gameboard.list_cells(Markers.FLOOR)
+    if len(empty_cells) == 0:
+        game_over = True
+        print("hello")
+        return
 
     # spawn apple at random empty cell
-    if empty_cells:
-        row, col = random.choice(empty_cells)
-        gameboard.set_marker(row, col, Markers.APPLE)
-        
-        apple_row = row
-        apple_col = col
-        return True
-
-    return False
+    cell = random.choice(empty_cells)
+    apple = Apple(gameboard, cell.row, cell.col)
 
 def init_agent():
     global agent
-    agent = Agent()
+    agent = Agent(gameboard, snake, apple)
 
 def init_timer():
     global time
@@ -251,11 +247,11 @@ def on_keyup(event):
         
     # start manual game on 'Ctrl-M' or 'F1' key-release
     elif (ctrl_active and event.key == pygame.K_m) or event.key == pygame.K_F1:
-        restart_game(GameModes.MANUAL)
+        restart_game(Gamemodes.MANUAL)
         
-    # start autonomous game on 'Ctrl-A' 'F2' key-release
+    # start autonomous game on 'Ctrl-A' or 'F2' key-release
     elif (ctrl_active and event.key == pygame.K_a) or event.key == pygame.K_F2:
-        restart_game(GameModes.AUTO)
+        restart_game(Gamemodes.AUTO)
         
     # toggle fullscreen on 'F11' key-release
     elif event.key == pygame.K_F11:
@@ -264,11 +260,15 @@ def on_keyup(event):
     # exit game on 'ESC' key-release
     elif event.key == pygame.K_ESCAPE:
         active = False
+        
+    # grow snake on 'G' key-release (use only for development purposes)
+    # elif event.key == pygame.K_g and snake is not None:
+    #     snake.grow(5)
 
 def on_keydown(event):
     global snake_direc
     
-    if game_mode == GameModes.MANUAL:
+    if gamemode == Gamemodes.MANUAL:
         # change snake direction to North on 'W' or 'Up-Arrow' key-press
         if event.key == pygame.K_UP or event.key == pygame.K_w:
             snake_direc = Directions.NORTH
@@ -317,7 +317,7 @@ def main(argv):
     
     global active
     global game_over
-    global game_mode
+    global gamemode
     
     global time
     
@@ -337,20 +337,23 @@ def main(argv):
     # initialize game components
     init_gameboard()
     init_snake()
-    spawn_apple()
+    init_apple()
+    
+    # initialize autonomous player
     init_agent()
+    
     init_timer()
     clock = pygame.time.Clock()
     
     active = True
     game_over = False
-    game_mode = GameModes.AUTO
+    gamemode = Gamemodes.AUTO
     
     # mainloop
     while active:        
         gameboard.draw(
             screen, 
-            game_mode_titles[game_mode],
+            gamemode_titles[gamemode],
             snake.length, 
             time
         )
@@ -369,23 +372,23 @@ def main(argv):
             elif event.type == pygame.QUIT:
                 active = False
         
-        if game_mode == GameModes.AUTO:
-            snake_direc = agent.choose_direction()
-        
         # resume game (if it's not over)
         if not game_over:
         
             # move the snake
             # success: bool if snake moved successfully (did not hit a wall or body)
             # ate_apple: bool if snake moved on top of an apple
-            success, ate_apple = snake.move(snake_direc)
+            if gamemode == Gamemodes.MANUAL:
+                success, ate_apple = snake.move(snake_direc, apple)
+            elif gamemode == Gamemodes.AUTO:
+                success, ate_apple = agent.move()
             
             # if the snake moved successfully ...
             if success:
                 # if apple was eaten, grow, and spawn a new one
                 if ate_apple:
                     snake.grow(SNAKE_GROW_RATE)
-                    spawn_apple()
+                    init_apple()
                 
                 snake_crashing = False # snake is not crashing (since the move was successfull)
                 snake_direc = None # have snake move in default direction (the direction of the head)
