@@ -34,11 +34,16 @@ TICKRATE = 30 # display refresh rate
 CRASH_DELAY = 50 # ms until snake crashes - gives player time to react
 
 # events
-CRASH_EVENT = pygame.USEREVENT
+CRASH_EVENT = pygame.USEREVENT # sent when snake crashes
+TIMER_EVENT = pygame.USEREVENT+1 # send when a second elapses
 
 # snake body settings
 SNAKE_INIT_LENGTH = 4 # initial length
 SNAKE_GROW_RATE = 5 # growth per apple
+
+# fixed gameboard dimensions
+FIXED_GRID_ROWS = None # set to None if using variable-sized grid
+FIXED_GRID_COLS = None # set to None if using variable-sized grid
 
 """
 =====================================================================================================
@@ -74,17 +79,37 @@ snake = None
 snake_direc = None # current snake direction
 snake_crashing = None # bool if snake is currently crashing (waiting on a CRASH_EVENT for CRASH_DELAY ms)
 
+apple_row = None
+apple_col = None
+
 agent = None
 
 active = None # bool if the app is supposed to be running (app closes once this becomes false)
 game_over = None # bool if the game has ended and pending a restart
 game_mode = None # manual or autonomous modes
 
+time = None # elapsed time
+
 """
 =====================================================================================================
 | INITIALIZATION |
 ==================
 """
+
+def restart_game(mode=None):
+    global game_over
+    global game_mode
+    
+    if mode is None:
+        mode = game_mode
+    elif mode == game_mode:
+        return
+
+    game_over = False
+    game_mode = mode
+    init_snake()
+    spawn_apple()
+    init_timer()
 
 def init_gameboard():
     global gameboard
@@ -95,13 +120,19 @@ def init_gameboard():
     width = SCREEN_WIDTH if not FULLSCREEN else display_info.current_w
     height = SCREEN_HEIGHT if not FULLSCREEN else display_info.current_h
     
-    # calculate number of rows and columns for the gameboard
-    grid_rows = int(height//CELL_HEIGHT * (1-FOOTER_PCT) - 2)
-    grid_cols = int(width//CELL_WIDTH - 2)
+    # calculate number of rows, unless a fixed number is provided
+    if FIXED_GRID_ROWS is None:
+        grid_rows = int(height//CELL_HEIGHT * (1-FOOTER_PCT) - 2)
+    else:
+        grid_rows = FIXED_GRID_ROWS
+    
+    # calculate number of columns, unless a fixed number is provided
+    if FIXED_GRID_COLS is None:
+        grid_cols = int(width//CELL_WIDTH - 2)
+    else:
+        grid_cols = FIXED_GRID_COLS
 
     gameboard = Gameboard(grid_rows, grid_cols)
-    
-    spawn_apple()
 
 def init_snake():
     global snake
@@ -163,11 +194,16 @@ def init_snake():
     snake = Snake(gameboard, length, row, col, direc)
     snake_crashing = False
 
-def init_agent():
-    global agent
-    agent = Agent()
-
 def spawn_apple():
+    global apple_row
+    global apple_col
+    
+    # remove apple if it exists
+    if apple_row is not None and apple_col is not None:
+        gameboard.set_marker(apple_row, apple_col, Markers.FLOOR)
+        apple_row = None
+        apple_col = None
+
     # spawn an apple at a random empty location on the gameboard
     empty_cells = []
 
@@ -181,9 +217,22 @@ def spawn_apple():
     if empty_cells:
         row, col = random.choice(empty_cells)
         gameboard.set_marker(row, col, Markers.APPLE)
+        
+        apple_row = row
+        apple_col = col
         return True
 
     return False
+
+def init_agent():
+    global agent
+    agent = Agent()
+
+def init_timer():
+    global time
+    
+    time = 0
+    pygame.time.set_timer(TIMER_EVENT, 1000) # send TIMER_EVENT after 1 second
 
 """
 =====================================================================================================
@@ -193,25 +242,20 @@ def spawn_apple():
 
 def on_keyup(event):
     global active
-    global game_over
-    global game_mode
+    
+    ctrl_active = (event.mod & pygame.KMOD_CTRL) or (event.mod & pygame.KMOD_META)
     
     # restart the game on 'R' key-release
-    if event.key == pygame.K_r:
-        game_over = False
-        init_snake()
+    if ctrl_active and event.key == pygame.K_r:
+        restart_game()
         
-    # start manual game on 'F1' key-release
-    elif event.key == pygame.K_F1:
-        game_over = False
-        game_mode = GameModes.MANUAL
-        init_snake()
+    # start manual game on 'Ctrl-M' or 'F1' key-release
+    elif (ctrl_active and event.key == pygame.K_m) or event.key == pygame.K_F1:
+        restart_game(GameModes.MANUAL)
         
-    # start autonomous game on 'F2' key-release
-    elif event.key == pygame.K_F2:
-        game_over = False
-        game_mode = GameModes.AUTO
-        init_snake()
+    # start autonomous game on 'Ctrl-A' 'F2' key-release
+    elif (ctrl_active and event.key == pygame.K_a) or event.key == pygame.K_F2:
+        restart_game(GameModes.AUTO)
         
     # toggle fullscreen on 'F11' key-release
     elif event.key == pygame.K_F11:
@@ -220,10 +264,6 @@ def on_keyup(event):
     # exit game on 'ESC' key-release
     elif event.key == pygame.K_ESCAPE:
         active = False
-        
-    # grow snake on 'G' key-release (use only for development purposes)
-    elif event.key == pygame.K_g and snake is not None:
-        snake.grow(5)
 
 def on_keydown(event):
     global snake_direc
@@ -279,6 +319,8 @@ def main(argv):
     global game_over
     global game_mode
     
+    global time
+    
     os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (SCREEN_X, SCREEN_Y)
 
     pygame.init()
@@ -292,33 +334,34 @@ def main(argv):
     # set the window title
     pygame.display.set_caption(SCREEN_TITLE)
     
+    # initialize game components
     init_gameboard()
     init_snake()
+    spawn_apple()
     init_agent()
+    init_timer()
     clock = pygame.time.Clock()
-    
-    # initialize timer
-    start_time = pygame.time.get_ticks() / 1000.0
     
     active = True
     game_over = False
     game_mode = GameModes.AUTO
     
     # mainloop
-    while active:
-    
-        # calculate elapsed time
-        current_time = pygame.time.get_ticks() / 1000.0
-        elapsed_time = current_time - start_time if not game_over else elapsed_time
-        
-        game_mode_title = game_mode_titles[game_mode]
-        gameboard.draw(screen, game_mode_title, snake.length, elapsed_time)
+    while active:        
+        gameboard.draw(
+            screen, 
+            game_mode_titles[game_mode],
+            snake.length, 
+            time
+        )
         
         # activate events
         for event in pygame.event.get():
             if event.type == CRASH_EVENT and snake_crashing:
                 game_over = True
                 snake.crash()
+            elif event.type == TIMER_EVENT and not game_over:
+                time+=1
             elif event.type == pygame.KEYUP:
                 on_keyup(event)
             elif event.type == pygame.KEYDOWN:
@@ -333,7 +376,7 @@ def main(argv):
         if not game_over:
         
             # move the snake
-            # success: bool if snake moved successfully (did not hit a wall or body)(
+            # success: bool if snake moved successfully (did not hit a wall or body)
             # ate_apple: bool if snake moved on top of an apple
             success, ate_apple = snake.move(snake_direc)
             
