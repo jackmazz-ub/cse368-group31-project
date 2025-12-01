@@ -16,6 +16,8 @@ CELL_HEIGHT = 10 # height of each square on the gameboard
 # styling
 BG_COLOR = (0, 0, 0) # background color
 FG_COLOR = (255, 255, 255) # color of text and other foreground elements
+FONT_FILEPATH = None
+FONT_SIZE = 36
 
 """
 =====================================================================================================
@@ -60,7 +62,7 @@ class Gameboard:
             for j in range(cols):
                 self.markers[i].append(Markers.FLOOR)
                 
-    def draw(self, screen, score=None, elapsed_time=None):
+    def draw(self, screen, game_mode=None, score=None, elapsed_time=None):
         screen.fill(BG_COLOR) # draw the background
         
         # draw each cell depending on it's marker
@@ -78,17 +80,22 @@ class Gameboard:
                 pygame.draw.rect(screen, color, rect)
 
         # draw scoreboard and timer
-        if score is not None or elapsed_time is not None:
+        if game_mode is not None or score is not None or elapsed_time is not None:
             if self.font is None:
-                self.font = pygame.font.Font(None, 36)
-
-            score_y = (self.rows + 2) * CELL_HEIGHT + 10
+                self.font = pygame.font.Font(FONT_FILEPATH, FONT_SIZE)
+            
+            footer_y = (self.rows + 2) * CELL_HEIGHT + 10
+            
+            score_x = 10
+            timer_x = ((self.cols + 2) * CELL_WIDTH) // 2
+            game_mode_x = (self.cols + 2) * CELL_WIDTH - 10
 
             # draw score
             if score is not None:
-                score_text = f"Score: {score}"
+                pct = max(round(score/(self.rows*self.cols) * 100, 2), 0.01)              
+                score_text = f"Length: {score}  ({pct}%)"
                 text_surface = self.font.render(score_text, True, FG_COLOR)
-                screen.blit(text_surface, (10, score_y))
+                screen.blit(text_surface, (score_x, footer_y))
 
             # draw timer
             if elapsed_time is not None:
@@ -96,17 +103,12 @@ class Gameboard:
                 seconds = int(elapsed_time % 60)
                 timer_text = f"Time: {minutes:02d}:{seconds:02d}"
                 text_surface = self.font.render(timer_text, True, FG_COLOR)
-                screen.blit(text_surface, (250, score_y))  # position timer to the right of score
-
-        # draw timer
-        if elapsed_time is not None:
-            minutes = int(elapsed_time // 60)
-            seconds = int(elapsed_time % 60)
+                screen.blit(text_surface, (timer_x - text_surface.get_width()//2, footer_y))
             
-            timer_text = f"Time: {minutes:02d}:{seconds:02d}"
-            text_surface = self.font.render(timer_text, True, FG_COLOR)
-            
-            screen.blit(text_surface, (250, score_y)) # position timer to the right of score
+            # draw game mode
+            if game_mode is not None:
+                text_surface = self.font.render(game_mode, True, FG_COLOR)
+                screen.blit(text_surface, (game_mode_x - text_surface.get_width(), footer_y))
 
         pygame.display.update()
     
