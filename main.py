@@ -43,8 +43,8 @@ SNAKE_INIT_LENGTH = 4 # initial length
 SNAKE_GROW_RATE = 5 # growth per apple
 
 # fixed gameboard dimensions
-FIXED_GRID_ROWS = None # set to None if using variable-sized grid
-FIXED_GRID_COLS = None # set to None if using variable-sized grid
+FIXED_GRID_ROWS = 45 # set to None if using variable-sized grid
+FIXED_GRID_COLS = 94 # set to None if using variable-sized grid
 
 """
 =====================================================================================================
@@ -214,7 +214,6 @@ def init_apple():
     empty_cells = gameboard.list_cells(Markers.FLOOR)
     if len(empty_cells) == 0:
         game_over = True
-        print("hello")
         return
 
     # spawn apple at random empty cell
@@ -224,6 +223,7 @@ def init_apple():
 def init_agent():
     global agent
     agent = Agent(gameboard, snake_ptr, apple_ptr)
+    agent.train()
 
 def init_timer():
     global time
@@ -315,6 +315,7 @@ def main(argv):
     
     global gameboard
     global snake_direc
+    global snake_crashing
     
     global active
     global game_over
@@ -339,9 +340,14 @@ def main(argv):
     init_gameboard()
     init_snake()
     init_apple()
+    snake_crashing = False
     
     # initialize autonomous player
     init_agent()
+    
+    # reset snake and apple
+    init_snake()
+    init_apple()
     
     init_timer()
     clock = pygame.time.Clock()
@@ -401,7 +407,8 @@ def main(argv):
         
         # delay the mainloop by TICKRATE
         clock.tick(TICKRATE)
-
+    
+    agent.close()
     pygame.quit()
     return 0
 
