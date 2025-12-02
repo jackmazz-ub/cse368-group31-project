@@ -73,8 +73,7 @@ class Snake:
     
     # attempt a move, return false if movement failed
     # return a second boolean if an apple was eaten
-    def move(self, direc, apple):
-        
+    def move(self, direc, apple_ptr):        
         # prevent movement if snake is destroyed
         if not self.active:
             return False, False
@@ -89,6 +88,7 @@ class Snake:
 
         # check if the head will move onto an apple
         # if so, remove the apple
+        apple = apple_ptr.value # dereference apple pointer
         new_head_row = self.head.row + direc_dists[direc][0]
         new_head_col = self.head.col + direc_dists[direc][1]
         ate_apple = new_head_row == apple.row and new_head_col == apple.col

@@ -40,7 +40,7 @@ marker_colors = {
     Markers.WALL: (0, 0, 255),
     Markers.APPLE: (255, 0, 0),
     Markers.SNAKE: (0, 255, 0),
-    Markers.SNAKE_CRASH: (255, 255, 0),
+    Markers.SNAKE_CRASH: (0, 150, 0),
 }
 
 """

@@ -52,6 +52,10 @@ FIXED_GRID_COLS = None # set to None if using variable-sized grid
 ==================
 """
 
+class Pointer:
+    def __init__(self, value=None):
+        self.value = value
+
 # identifiers for the game modes
 class Gamemodes(IntEnum):
     MANUAL = 0
@@ -76,11 +80,11 @@ gameboard = None
 grid_rows = None # gameboard number of rows
 grid_cols = None # gameboard number of columns
 
-snake = None
+snake_ptr = Pointer() # reference to a snake
 snake_direc = None # current snake direction
 snake_crashing = None # bool if snake is currently crashing (waiting on a CRASH_EVENT for CRASH_DELAY ms)
 
-apple = None
+apple_ptr = Pointer() # reference to an apple
 
 agent = None
 
@@ -113,9 +117,6 @@ def restart_game(mode=None):
     init_snake()
     init_apple()
     init_timer()
-    
-    agent.snake = snake
-    agent.apple = apple
 
 def init_gameboard():
     global gameboard
@@ -141,12 +142,12 @@ def init_gameboard():
     gameboard = Gameboard(grid_rows, grid_cols)
 
 def init_snake():
-    global snake
+    global snake_ptr
     global snake_crashing
     
     # remove current snake if it exists
-    if snake is not None:
-        snake.destroy()
+    if snake_ptr.value is not None:
+        snake_ptr.value.destroy()
         
     # choose starting head location
     # row & col chosen s.t. the snake's body will not spawn OOB
@@ -197,16 +198,16 @@ def init_snake():
         if (random.random() <= 0.5):
             direc *= -1
 
-    snake = Snake(gameboard, length, row, col, direc)
+    snake_ptr.value = Snake(gameboard, length, row, col, direc)
     snake_crashing = False
 
 def init_apple():
-    global apple
+    global apple_ptr
     global game_over
     
     # remove current apple if it exists
-    if apple is not None:
-        apple.destroy()
+    if apple_ptr.value is not None:
+        apple_ptr.value.destroy()
     
     # find all possible positions (not occupied by anything)
     # if none are found, end the game (the player won)
@@ -218,11 +219,11 @@ def init_apple():
 
     # spawn apple at random empty cell
     cell = random.choice(empty_cells)
-    apple = Apple(gameboard, cell.row, cell.col)
+    apple_ptr.value = Apple(gameboard, cell.row, cell.col)
 
 def init_agent():
     global agent
-    agent = Agent(gameboard, snake, apple)
+    agent = Agent(gameboard, snake_ptr, apple_ptr)
 
 def init_timer():
     global time
@@ -263,7 +264,7 @@ def on_keyup(event):
         
     # grow snake on 'G' key-release (use only for development purposes)
     # elif event.key == pygame.K_g and snake is not None:
-    #     snake.grow(5)
+    #     snake_ptr.value.grow(5)
 
 def on_keydown(event):
     global snake_direc
@@ -354,7 +355,7 @@ def main(argv):
         gameboard.draw(
             screen, 
             gamemode_titles[gamemode],
-            snake.length, 
+            snake_ptr.value.length, 
             time
         )
         
@@ -362,7 +363,7 @@ def main(argv):
         for event in pygame.event.get():
             if event.type == CRASH_EVENT and snake_crashing:
                 game_over = True
-                snake.crash()
+                snake_ptr.value.crash()
             elif event.type == TIMER_EVENT and not game_over:
                 time+=1
             elif event.type == pygame.KEYUP:
@@ -379,7 +380,7 @@ def main(argv):
             # success: bool if snake moved successfully (did not hit a wall or body)
             # ate_apple: bool if snake moved on top of an apple
             if gamemode == Gamemodes.MANUAL:
-                success, ate_apple = snake.move(snake_direc, apple)
+                success, ate_apple = snake_ptr.value.move(snake_direc, apple_ptr)
             elif gamemode == Gamemodes.AUTO:
                 success, ate_apple = agent.move()
             
@@ -387,7 +388,7 @@ def main(argv):
             if success:
                 # if apple was eaten, grow, and spawn a new one
                 if ate_apple:
-                    snake.grow(SNAKE_GROW_RATE)
+                    snake_ptr.value.grow(SNAKE_GROW_RATE)
                     init_apple()
                 
                 snake_crashing = False # snake is not crashing (since the move was successfull)
