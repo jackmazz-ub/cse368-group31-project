@@ -223,7 +223,6 @@ def init_apple():
 def init_agent():
     global agent
     agent = Agent(gameboard, snake_ptr, apple_ptr)
-    agent.train()
 
 def init_timer():
     global time
@@ -323,19 +322,6 @@ def main(argv):
     
     global time
     
-    os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (SCREEN_X, SCREEN_Y)
-
-    pygame.init()
-    display_info = pygame.display.Info()
-    screen = pygame.display.set_mode(
-        (SCREEN_WIDTH, SCREEN_HEIGHT),
-        pygame.FULLSCREEN if FULLSCREEN else pygame.RESIZABLE,
-        vsync=VSYNC,
-    )
-    
-    # set the window title
-    pygame.display.set_caption(SCREEN_TITLE)
-    
     # initialize game components
     init_gameboard()
     init_snake()
@@ -348,6 +334,19 @@ def main(argv):
     # reset snake and apple
     init_snake()
     init_apple()
+    
+    os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (SCREEN_X, SCREEN_Y)
+
+    pygame.init()
+    display_info = pygame.display.Info()
+    screen = pygame.display.set_mode(
+        (SCREEN_WIDTH, SCREEN_HEIGHT),
+        pygame.FULLSCREEN if FULLSCREEN else pygame.RESIZABLE,
+        vsync=VSYNC,
+    )
+    
+    # set the window title
+    pygame.display.set_caption(SCREEN_TITLE)
     
     init_timer()
     clock = pygame.time.Clock()

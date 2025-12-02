@@ -8,6 +8,8 @@ import torch.nn.functional as functional
 import torch.optim as optim
 import torch.nn.functional as F
 
+import os
+
 from collections import deque
 from enum import IntEnum
 from gymnasium import spaces
@@ -32,9 +34,11 @@ EPSILON_DECAY = 0.995
 EPSILON_MIN = 0.01
 TAU = 0.01
 
-EPISODES = 100 #12000
+EPISODES = 12000
 BATCH_SIZE = 64
 MEMORY_SIZE = 500000
+
+RETRAIN = False
 
 """
 =====================================================================================================
@@ -112,6 +116,12 @@ class Agent(gym.Env):
         self.gameboard = gameboard
         self.snake_ptr = snake_ptr
         self.apple_ptr = apple_ptr
+        
+        if os.path.isfile(TRAINING_DATA_FILENAME):
+            self.load_training_data()
+        else:
+            self.train()
+            
         
     def get_state(self):
         snake = self.snake_ptr.value # dereference snake pointer
@@ -245,7 +255,8 @@ class Agent(gym.Env):
         return np.argmax(self.policy_model(tensor).detach().numpy())
     
     def load_training_data(self):
-        self.model.load_state_dict(torch.load(TRAINING_DATA_FILENAME))
+        self.policy_model.load_state_dict(torch.load(TRAINING_DATA_FILENAME))
+        self.target_model.load_state_dict(torch.load(TRAINING_DATA_FILENAME))
     
     def save_training_data(self):
         torch.save(self.target_model.state_dict(), TRAINING_DATA_FILENAME)
