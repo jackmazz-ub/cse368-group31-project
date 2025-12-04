@@ -43,8 +43,8 @@ SNAKE_INIT_LENGTH = 4 # initial length
 SNAKE_GROW_RATE = 5 # growth per apple
 
 # fixed gameboard dimensions
-FIXED_GRID_ROWS = 45 # set to None if using variable-sized grid
-FIXED_GRID_COLS = 94 # set to None if using variable-sized grid
+FIXED_GRID_ROWS = 10 # set to None if using variable-sized grid (originally 45)
+FIXED_GRID_COLS = 10 # set to None if using variable-sized grid (originally 94)
 
 """
 =====================================================================================================
@@ -198,7 +198,7 @@ def init_snake():
         if (random.random() <= 0.5):
             direc *= -1
 
-    snake_ptr.value = Snake(gameboard, length, row, col, direc)
+    snake_ptr.value = Snake(gameboard, apple_ptr, length, row, col, direc)
     snake_crashing = False
 
 def init_apple():
@@ -369,6 +369,9 @@ def main(argv):
             if event.type == CRASH_EVENT and snake_crashing:
                 game_over = True
                 snake_ptr.value.crash()
+                if gamemode == Gamemodes.AUTO:
+                    restart_game()
+                
             elif event.type == TIMER_EVENT and not game_over:
                 time+=1
             elif event.type == pygame.KEYUP:
@@ -385,7 +388,7 @@ def main(argv):
             # success: bool if snake moved successfully (did not hit a wall or body)
             # ate_apple: bool if snake moved on top of an apple
             if gamemode == Gamemodes.MANUAL:
-                success, ate_apple = snake_ptr.value.move(snake_direc, apple_ptr)
+                success, ate_apple = snake_ptr.value.move(snake_direc)
             elif gamemode == Gamemodes.AUTO:
                 success, ate_apple = agent.move()
             
