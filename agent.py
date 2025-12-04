@@ -1,6 +1,8 @@
 import gymnasium as gym
 import numpy as np
 import random
+import os
+from util.pointer import Pointer
 
 import torch
 import torch.nn as nn
@@ -8,15 +10,13 @@ import torch.nn.functional as functional
 import torch.optim as optim
 import torch.nn.functional as F
 
-import os
-
 from collections import deque
 from enum import IntEnum
 from gymnasium import spaces
 
-from apple import Apple
+from apple import apple_ptr
 from gameboard import Markers
-from snake import Snake, Directions
+from snake import Directions, snake_ptr
 
 """
 =====================================================================================================
@@ -26,27 +26,24 @@ from snake import Snake, Directions
 
 TRAINING_DATA_FILENAME = "data/training-data.h5"
 
-# q algorithm parameters
 ALPHA = 0.001 # learning rate
-GAMMA = 0.990 # discount factor
+GAMMA = 0.99 # discount factor
 EPSILON_START = 1.0 # exploration rate
 EPSILON_DECAY = 0.995
 EPSILON_MIN = 0.01
 TAU = 0.01
 
-EPISODES = 1000 # number of episodes during training (originally 12000)
-MAX_STEPS = 5000 # max number of steps per episode
+EPISODES = 1000
+MAX_STEPS = 5000
 
 BATCH_SIZE = 64
 MEMORY_SIZE = 500000
 
-# reward/penalty specification
-WIN_REWARD = 50000 # reward for reaching 100% length
-APPLE_REWARD = 5000 # reward for eating an apple
-APPLE_DIST_MULTIPLIER = 0.1 # distance to apple reward multiplier
-LOSS_PENALTY = -5000 # penalty for crashing
+WIN_REWARD = 50000
+APPLE_REWARD = 5000
+LOSS_PENALTY = -5000
 
-RETRAIN = False # set to True to train on every initialization
+RETRAIN = True # set to True to train on every initialization
 
 """
 =====================================================================================================
@@ -54,14 +51,12 @@ RETRAIN = False # set to True to train on every initialization
 ==================
 """
 
-# identifiers for all possible actions
 class Actions(IntEnum):
     MOVE_NORTH = 0
     MOVE_SOUTH = 1
     MOVE_EAST = 2
     MOVE_WEST = 3
 
-# map actions to directions
 action_direcs = {
     Actions.MOVE_NORTH: Directions.NORTH,
     Actions.MOVE_SOUTH: Directions.SOUTH,
@@ -71,27 +66,11 @@ action_direcs = {
 
 """
 =====================================================================================================
-| INITIALIZATION CONSTANTS (TEMPORARY) |
-========================================
-"""
-
-# snake spawn settings
-V_SPAWN_PCT = 0.500 # percent of display to spawn vertically
-H_SPAWN_PCT = 0.325 # percent of display to spawn horizontally
-FOOTER_PCT = 0.1 # percent of display to use for the footer
-
-# snake body settings
-SNAKE_INIT_LENGTH = 4 # initial length
-SNAKE_GROW_RATE = 5 # growth per apple
-
-grid_rows = 10 # gameboard number of rows
-grid_cols = 10 # gameboard number of columns
-
-"""
-=====================================================================================================
 | AGENT CLASS |
 ===============
 """
+
+agent_ptr = Pointer()
 
 class DQN(nn.Module):    
     def __init__(self, state_size, action_size):
@@ -120,18 +99,15 @@ class DQN(nn.Module):
         return loss.item()
 
 class Agent(gym.Env):
-    def __init__(self, gameboard, snake_ptr, apple_ptr):
-    
-        # determine state size
-        self.state_space = spaces.Box(
+    def __init__(self):
+        self.observation_space = spaces.Box(
             low=-500, # lower bound
             high=500, # upper bound
             shape=(5,), # 1-dimensional, 25 values
             dtype=np.float32 # data type (float)
         )
-        self.state_size = self.state_space.shape[0]
+        self.state_size = self.observation_space.shape[0]
         
-        # determine number of actions
         self.action_space = spaces.Discrete(4) # four directions (NSEW)
         self.action_size = self.action_space.n
         
@@ -141,113 +117,86 @@ class Agent(gym.Env):
         self.target_model.load_state_dict(self.policy_model.state_dict())
         self.memory = deque(maxlen=MEMORY_SIZE)  
         
-        # initialize game elments
-        self.gameboard = gameboard
-        self.snake_ptr = snake_ptr # reference to main snake
-        self.apple_ptr = apple_ptr # reference to main apple
-        
         # load training data if not retraining, and if the traning data exists
         if not RETRAIN and os.path.isfile(TRAINING_DATA_FILENAME):
             self.load_training_data()
         else:
             self.train()
             
-    # return the current state information
     def get_state(self):
-        snake = self.snake_ptr.value # dereference snake pointer
-        apple = self.apple_ptr.value # dereference apple pointer
-        
-        head_pos = [snake.head.row, snake.head.col] # position of snake head
-        apple_pos = [apple.row, apple.col] # position of apple
+        head_pos = [snake_ptr.value.head.row, snake_ptr.value.head.col]
+        apple_pos = [apple_ptr.value.row, apple_ptr.value.col]
         
         # calculate difference between head and snake positions
-        # prevent calculation if no apple exists
         delta = [0, 0]
-        if apple_pos[0] is not None and apple_pos[1] is not None:
+        if apple_ptr.value.placed:
             delta = [
                 head_pos[0] - apple_pos[0], # row difference
                 head_pos[1] - apple_pos[1], # col difference
             ]
         
-        # state information
         state = np.array([
-            snake.head.row,
-            snake.head.col,
+            snake_ptr.value.head.row,
+            snake_ptr.value.head.col,
             delta[0],
             delta[1],
-            snake.length,
+            snake_ptr.value.length,
         ])
 
         return state
     
-    # reset the snake and apple
-    def reset_state(self):
-        self.init_snake()
-        self.init_apple()
-    
-    # move the snake using the best action
     def move(self):
-        snake = self.snake_ptr.value # dereference snake pointer
+        # get the best action for the current state
+        action = self.exploit(self.get_state())
         
-        action = self.exploit(self.get_state()) # get the best action for the current state
-        direc = action_direcs[action] # get the direction that corresponds to the action
-        return snake.move(direc)
+        direc = action_direcs[action]
+        snake_ptr.value.turn(direc)
+        return snake_ptr.value.move()
     
-    # take and action for training
-    # return the state and reward for taking the action
     def step(self, action):
-        snake = self.snake_ptr.value # dereference snake pointer
-        apple = self.apple_ptr.value # dereference apple pointer
-        
-        # initialize reward
         reward = 0.0
         
-        # move the snake depending on the provided action
-        direc = action_direcs[action] # get the direction that corresponds to the provided action
-        success, ate_apple = snake.move(direc)
+        direc = action_direcs[action]
+        snake_ptr.value.turn(direc)
+        ate_apple = snake_ptr.value.move()
         
         # return penalty if the snake crashes
-        if not success:
+        if snake_ptr.value.crashing:
             return self.get_state(), LOSS_PENALTY, True
         
         # reset the apple if it was eaten, and increase the reward
         if ate_apple:
             reward += APPLE_REWARD
-            self.init_apple()
-            apple = self.apple_ptr.value # update apple
             print("ate apple!")
         
         # return reward if the snake reaches 100% length
-        if apple.row is None and apple.col is None:
+        if not apple_ptr.value.placed:
             print("victory!")
             return self.get_state(), WIN_REWARD, True
         
         # calculate the euclidian distance between the head and apple 
-        head_pos = [snake.head.row, snake.head.col]  # position of snake head
-        apple_pos = [apple.row, apple.col] # position of apple
+        head_pos = [snake_ptr.value.head.row, snake_ptr.value.head.col]
+        apple_pos = [apple_ptr.value.row, apple_ptr.value.col]
         dist = np.linalg.norm(np.array(head_pos) - np.array(apple_pos))
         
         # increase reward depending on distance to apple
-        reward += dist*APPLE_DIST_MULTIPLIER
+        reward += 0.1*dist
         
         return self.get_state(), reward, False
     
-    # run though the training loop
-    # store the final training data
     def train(self):
-        
-        # initialize exploration rate
         epsilon = EPSILON_START
         
         for i in range(EPISODES):
-        
-            self.reset_state() # reset the state
-            state = self.get_state() # get the initial state
+            # reset the state
+            snake_ptr.value.place()
+            apple_ptr.value.place()
+            
+            state = self.get_state()
             
             total_reward = 0.0
             done = False
             
-            # take actions until the snake crashes, or wins
             for j in range(MAX_STEPS):            
                 # explore or exploit based on P(epsilon)
                 if np.random.rand() <= epsilon:
@@ -255,8 +204,8 @@ class Agent(gym.Env):
                 else:
                     action = self.exploit(state)
                 
-                next_state, reward, done = self.step(action) # take the action
-                total_reward += reward # accumulate the reward
+                next_state, reward, done = self.step(action)
+                total_reward += reward
                 
                 # add the step information to memory
                 self.memory.append((
@@ -267,22 +216,18 @@ class Agent(gym.Env):
                     done,
                 ))
                 
-                # update the state
                 state = next_state
                 
-                # end the episode if snake wins/loses
                 if done:
                     break
             
-            # print training information
-            print(f"Episode: {i+1}, \tSteps: {j}, \tReward: {int(total_reward)}")
+            print(f"Episode: {i+1}, \tSteps: {j}, \tEpsilon: {round(epsilon, 2)}, \tReward: {int(total_reward)}")
             
             self.replay()
             
             # reduce exploration rate
             epsilon = max(epsilon*EPSILON_DECAY, EPSILON_MIN)
         
-        # store training data
         self.save_training_data()
     
     def replay(self):
@@ -308,100 +253,19 @@ class Agent(gym.Env):
 
         params = zip(self.target_model.parameters(), self.policy_model.parameters())
         for target_param, online_param in params:
-            target_param.data.copy_(TAU*online_param.data + (1.0 - TAU)*target_param.data)
+            target_param.data.copy_(TAU*online_param.data + (1.0-TAU)*target_param.data)
     
-    # return random action
     def explore(self):
         return random.randrange(self.action_size)
     
-    # return the best action depending on the provided state
     def exploit(self, state):
         tensor = torch.tensor(state, dtype=torch.float)
         return np.argmax(self.target_model(tensor).detach().numpy())
     
-    # load the training data at TRAINING_DATA_FILENAME
     def load_training_data(self):
         self.policy_model.load_state_dict(torch.load(TRAINING_DATA_FILENAME))
         self.target_model.load_state_dict(torch.load(TRAINING_DATA_FILENAME))
     
-    # store the training data at TRAINING_DATA_FILENAME
     def save_training_data(self):
         torch.save(self.target_model.state_dict(), TRAINING_DATA_FILENAME)
-
-    """
-    =====================================================================================================
-    | INITIALIZATION (TEMPORARY) |
-    ==============================
-    """
-
-    def init_snake(self):
-        if self.snake_ptr.value is not None:
-            self.snake_ptr.value.destroy()
-
-        # choose starting head location
-        # row & col chosen s.t. the snake's body will not spawn OOB
-        length = SNAKE_INIT_LENGTH
-        row = random.randint(length, grid_rows-length-1)
-        col = random.randint(length, grid_cols-length-1)
-
-        """
-        Spawn Sectors
-        ---------- ---------- ----------
-        |        | | NORTH  | |        |
-        |        | | SECTOR | |        |
-        | WEST   | ---------- | EAST   |
-        | SECTOR | ---------- | SECTOR |
-        |        | | SOUTH  | |        |
-        |        | | SECTOR | |        |
-        ---------- ---------- ----------
-        
-        These sectors define areas of the board which are 'too close to the edge'.
-        Snakes which spawn in these areas will begin facing away from the edge to
-        reduce unfair spawns.
-        """
-        
-        v_spawn = int(grid_rows * V_SPAWN_PCT) # defines the width of the East and West sectors
-        h_spawn = int(grid_cols * H_SPAWN_PCT) # defines the height of the North and South sectors
-        
-        direc = None
-        
-        # start facing East if spawning in the West Sector
-        if col < h_spawn:
-            direc = Directions.EAST
-            
-        # start facing West if spawning in the East Sector
-        elif col > grid_cols - h_spawn:
-            direc = Directions.WEST
-            
-        # start facing South if spawning in the North Sector
-        elif row < v_spawn:
-            direc = Directions.SOUTH
-            
-        # start facing North if spawning in the South Sector
-        elif row > grid_rows - v_spawn:
-            direc = Directions.NORTH
-            
-        # start in a random direction if not spawning in any sectors
-        else:
-            direc = random.randint(1, 2)
-            if (random.random() <= 0.5):
-                direc *= -1
-
-        self.snake_ptr.value = Snake(self.gameboard, self.apple_ptr, length, row, col, direc)
-
-    def init_apple(self):    
-        # remove current apple if it exists
-        if self.apple_ptr.value is not None:
-            self.apple_ptr.value.destroy()
-        
-        # find all possible positions (not occupied by anything)
-        # if none are found, end the game (the player won)
-        empty_cells = self.gameboard.list_cells(Markers.FLOOR)
-        if len(empty_cells) == 0:
-            game_over = True
-            return
-
-        # spawn apple at random empty cell
-        cell = random.choice(empty_cells)
-        self.apple_ptr.value = Apple(self.gameboard, cell.row, cell.col)
 
