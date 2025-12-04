@@ -43,7 +43,7 @@ WIN_REWARD = 50000
 APPLE_REWARD = 5000
 LOSS_PENALTY = -5000
 
-RETRAIN = True # set to True to train on every initialization
+RETRAIN = False # set to True to train on every initialization
 
 """
 =====================================================================================================
