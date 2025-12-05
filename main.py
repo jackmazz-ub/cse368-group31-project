@@ -141,8 +141,6 @@ def restart_game(mode=None):
     
     snake_ptr.value.place()
     apple_ptr.value.place()
-    
-    print("\n")
 
 """
 =====================================================================================================
