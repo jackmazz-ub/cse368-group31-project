@@ -33,7 +33,7 @@ EPSILON_DECAY = 0.998 # slower decay = more exploration = more risk-taking
 EPSILON_MIN = 0.05 # higher minimum = always some exploration
 TAU = 0.005 # slower target network update for stability
 
-EPISODES = 3000  # Optimized number of episodes
+EPISODES = 5000  # More episodes for better learning
 MAX_STEPS = 2000  # Reduced - forces snake to be efficient
 
 BATCH_SIZE = 128  # Increased for more stable learning
@@ -45,7 +45,7 @@ APPLE_REWARD = 15000  # Very high reward for eating apples
 LOSS_PENALTY = -5000  # Reduced penalty - don't be TOO afraid of dying
 STEP_PENALTY = -1  # Small penalty for each step to encourage efficiency
 
-RETRAIN = False # set to True to train on every initialization
+RETRAIN = True # set to True to train on every initialization
 
 """
 =====================================================================================================
@@ -111,7 +111,7 @@ class Agent(gym.Env):
         self.observation_space = spaces.Box(
             low=-500, # lower bound
             high=500, # upper bound
-            shape=(5,), # 1-dimensional, 25 values
+            shape=(11,), # Expanded to include danger detection
             dtype=np.float32 # data type (float)
         )
         self.state_size = self.observation_space.shape[0]
@@ -134,7 +134,7 @@ class Agent(gym.Env):
     def get_state(self):
         head_pos = [snake_ptr.value.head.row, snake_ptr.value.head.col]
         apple_pos = [apple_ptr.value.row, apple_ptr.value.col]
-        
+
         # calculate difference between head and snake positions
         delta = [0, 0]
         if apple_ptr.value.placed:
@@ -142,16 +142,41 @@ class Agent(gym.Env):
                 head_pos[0] - apple_pos[0], # row difference
                 head_pos[1] - apple_pos[1], # col difference
             ]
-        
+
+        # Detect danger in all 4 directions (wall or snake body)
+        danger_north = 1 if self.is_danger(head_pos[0] - 1, head_pos[1]) else 0
+        danger_south = 1 if self.is_danger(head_pos[0] + 1, head_pos[1]) else 0
+        danger_east = 1 if self.is_danger(head_pos[0], head_pos[1] + 1) else 0
+        danger_west = 1 if self.is_danger(head_pos[0], head_pos[1] - 1) else 0
+
+        # Current direction
+        current_dir = snake_ptr.value.head.direc
+        dir_north = 1 if current_dir == Directions.NORTH else 0
+        dir_south = 1 if current_dir == Directions.SOUTH else 0
+        dir_east = 1 if current_dir == Directions.EAST else 0
+        dir_west = 1 if current_dir == Directions.WEST else 0
+
         state = np.array([
-            snake_ptr.value.head.row,
-            snake_ptr.value.head.col,
-            delta[0],
-            delta[1],
+            delta[0],  # row difference to apple
+            delta[1],  # col difference to apple
+            danger_north,
+            danger_south,
+            danger_east,
+            danger_west,
+            dir_north,
+            dir_south,
+            dir_east,
+            dir_west,
             snake_ptr.value.length,
         ])
 
         return state
+
+    def is_danger(self, row, col):
+        """Check if a position contains a wall or snake body"""
+        from gameboard import gameboard_ptr
+        marker = gameboard_ptr.value.get_marker(row, col)
+        return marker == Markers.WALL or marker == Markers.SNAKE
     
     def move(self):
         # get the best action for the current state
@@ -178,7 +203,6 @@ class Agent(gym.Env):
         # reset the apple if it was eaten, and increase the reward
         if ate_apple:
             reward = APPLE_REWARD
-            print("ate apple!")
         else:
             # Calculate new distance to apple
             head_pos = [snake_ptr.value.head.row, snake_ptr.value.head.col]
@@ -299,4 +323,3 @@ class Agent(gym.Env):
     
     def save_training_data(self):
         torch.save(self.target_model.state_dict(), TRAINING_DATA_FILENAME)
-
