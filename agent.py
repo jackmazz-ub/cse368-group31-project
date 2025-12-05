@@ -33,7 +33,7 @@ EPSILON_DECAY = 0.995
 EPSILON_MIN = 0.01
 TAU = 0.01
 
-EPISODES = 1000
+EPISODES = 5000  # Increased from 1000 for more training
 MAX_STEPS = 5000
 
 BATCH_SIZE = 64
@@ -156,7 +156,7 @@ class Agent(gym.Env):
     def step(self, action):
         reward = 0.0
         
-        direc = action_direcs[action]
+        direc = action_direcs[action]f
         snake_ptr.value.turn(direc)
         ate_apple = snake_ptr.value.move()
         
