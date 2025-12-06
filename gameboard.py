@@ -11,14 +11,14 @@ from util.pointer import Pointer
 # positioning and sizing
 GRID_X = 0 # gameboard x-position
 GRID_Y = 0 # gameboard y-position
-CELL_WIDTH = 25 # width of each square on the gameboard
-CELL_HEIGHT = 25 # height of each square on the gameboard
+CELL_WIDTH = 50 # width of each square on the gameboard
+CELL_HEIGHT = 50 # height of each square on the gameboard
 
 # styling
 BG_COLOR = (0, 0, 0) # background color
 FG_COLOR = (255, 255, 255) # color of text and other foreground elements
 FONT_FILEPATH = None
-FONT_SIZE = 15
+FONT_SIZE = 30
 
 # dimensions
 GRID_ROWS = 10

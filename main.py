@@ -19,8 +19,8 @@ from snake import Directions, Snake, snake_ptr
 WINDOW_TITLE = "Q-Snake"
 WINDOW_X = 0
 WINDOW_Y = 0
-WINDOW_WIDTH = 960
-WINDOW_HEIGHT = 540
+WINDOW_WIDTH = 600
+WINDOW_HEIGHT = 675
 VSYNC = True
 
 V_SPAWN_PCT = 0.500 # percent of display to spawn vertically
