@@ -11,14 +11,14 @@ from util.pointer import Pointer
 # positioning and sizing
 GRID_X = 0 # gameboard x-position
 GRID_Y = 0 # gameboard y-position
-CELL_WIDTH = 25 # width of each square on the gameboard
-CELL_HEIGHT = 25 # height of each square on the gameboard
+CELL_WIDTH = 50 # width of each square on the gameboard
+CELL_HEIGHT = 50 # height of each square on the gameboard
 
 # styling
 BG_COLOR = (0, 0, 0) # background color
 FG_COLOR = (255, 255, 255) # color of text and other foreground elements
 FONT_FILEPATH = None
-FONT_SIZE = 15
+FONT_SIZE = 30
 
 # dimensions
 GRID_ROWS = 10
@@ -121,12 +121,12 @@ class Gameboard:
 
         pygame.display.update()
     
-    def list_cells(self, marker=None):
+    def list_cells(self, match_markers=None):
         cells = []
         for i in range(self.rows):
             for j in range(self.cols):
                 cell = self.cells[i][j]
-                if marker is None or cell.marker == marker:
+                if match_markers is None or cell.marker in match_markers:
                     cells.append(cell)
         
         return cells
@@ -141,8 +141,10 @@ class Gameboard:
         
         return Markers.WALL
     
-    def set_marker(self, row, col, marker):
-        if self.get_marker(row, col) != Markers.WALL:
+    def set_marker(self, row, col, marker, match_markers=None):
+        prev_marker = self.get_marker(row, col)
+        matching = match_markers is None or prev_marker in match_markers
+        if prev_marker != Markers.WALL and matching:
             self.cells[row][col].marker = marker
     
     def is_blocked(self, row, col):

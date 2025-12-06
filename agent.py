@@ -15,7 +15,7 @@ from enum import IntEnum
 from gymnasium import spaces
 
 from apple import apple_ptr
-from gameboard import Markers
+from gameboard import Markers, gameboard_ptr
 from snake import Directions, snake_ptr
 
 """
@@ -33,8 +33,8 @@ EPSILON_DECAY = 0.998 # slower decay = more exploration = more risk-taking
 EPSILON_MIN = 0.05 # higher minimum = always some exploration
 TAU = 0.005 # slower target network update for stability
 
-EPISODES = 5000  # More episodes for better learning
-MAX_STEPS = 2000  # Reduced - forces snake to be efficient
+EPISODES = 5000 # More episodes for better learning
+MAX_STEPS = 2000 # Reduced - forces snake to be efficient
 
 BATCH_SIZE = 128  # Increased for more stable learning
 MEMORY_SIZE = 100000  # Reduced to save memory and speed up sampling
@@ -45,7 +45,7 @@ APPLE_REWARD = 15000  # Very high reward for eating apples
 LOSS_PENALTY = -5000  # Reduced penalty - don't be TOO afraid of dying
 STEP_PENALTY = -1  # Small penalty for each step to encourage efficiency
 
-RETRAIN = True # set to True to train on every initialization
+RETRAIN = False # set to True to train on every initialization
 
 """
 =====================================================================================================
@@ -144,10 +144,10 @@ class Agent(gym.Env):
             ]
 
         # Detect danger in all 4 directions (wall or snake body)
-        danger_north = 1 if self.is_danger(head_pos[0] - 1, head_pos[1]) else 0
-        danger_south = 1 if self.is_danger(head_pos[0] + 1, head_pos[1]) else 0
-        danger_east = 1 if self.is_danger(head_pos[0], head_pos[1] + 1) else 0
-        danger_west = 1 if self.is_danger(head_pos[0], head_pos[1] - 1) else 0
+        danger_north = 1 if gameboard_ptr.value.is_blocked(head_pos[0] - 1, head_pos[1]) else 0
+        danger_south = 1 if gameboard_ptr.value.is_blocked(head_pos[0] + 1, head_pos[1]) else 0
+        danger_east = 1 if gameboard_ptr.value.is_blocked(head_pos[0], head_pos[1] + 1) else 0
+        danger_west = 1 if gameboard_ptr.value.is_blocked(head_pos[0], head_pos[1] - 1) else 0
 
         # Current direction
         current_dir = snake_ptr.value.head.direc
@@ -264,7 +264,7 @@ class Agent(gym.Env):
         epsilon = EPSILON_START
         step_count = 0
 
-        for i in range(EPISODES):
+        for i in range(1, EPISODES):        
             # reset the state
             snake_ptr.value.place()
             apple_ptr.value.place()
@@ -275,7 +275,7 @@ class Agent(gym.Env):
             done = False
             apples_eaten = 0
 
-            for j in range(MAX_STEPS):
+            for j in range(1, MAX_STEPS):
                 # explore or exploit based on P(epsilon)
                 if np.random.rand() <= epsilon:
                     action = self.explore()
@@ -308,7 +308,7 @@ class Agent(gym.Env):
                 if done:
                     break
 
-            print(f"Episode: {i+1}/{EPISODES}, \tSteps: {j}, \tApples: {apples_eaten}, \tEpsilon: {round(epsilon, 3)}, \tReward: {int(total_reward)}")
+            print(f"Episode: {i}/{EPISODES}, \tSteps: {j}, \tApples: {apples_eaten}, \tEpsilon: {round(epsilon, 3)}, \tReward: {int(total_reward)}")
 
             # reduce exploration rate
             epsilon = max(epsilon*EPSILON_DECAY, EPSILON_MIN)

@@ -107,7 +107,12 @@ class Snake:
     
         seg = self.head
         while seg is not None:
-            gameboard_ptr.value.set_marker(seg.row, seg.col, Markers.FLOOR)
+            gameboard_ptr.value.set_marker(
+                seg.row, seg.col, 
+                Markers.FLOOR,
+                match_markers=[Markers.SNAKE, Markers.SNAKE_CRASH],
+            )
+            
             seg.row = None
             seg.col = None
             seg = seg.link
@@ -136,13 +141,6 @@ class Snake:
         direc = self.turn_direc
         if direc is None:
             direc = self.head.direc
-
-        new_head_row = self.head.row + direc_dists[direc][0]
-        new_head_col = self.head.col + direc_dists[direc][1]
-        ate_apple = new_head_row == apple_ptr.value.row and new_head_col == apple_ptr.value.col
-        if ate_apple:
-            self.grow(SNAKE_GROW_RATE)
-            apple_ptr.value.place()
         
         # move all segments in the chain
         seg = self.head
@@ -167,12 +165,23 @@ class Snake:
             seg = seg.link
             
             gameboard_ptr.value.set_marker(row, col, Markers.SNAKE)
-            gameboard_ptr.value.set_marker(prev_row, prev_col, Markers.FLOOR)
+            gameboard_ptr.value.set_marker(
+                prev_row, prev_col, 
+                Markers.FLOOR, 
+                match_markers=[Markers.SNAKE],
+            )
         
         # if moving into an open cell, stop crashing
         self.crashing = False
         
-        return ate_apple
+        ate_apple_row = self.head.row == apple_ptr.value.row
+        ate_apple_col = self.head.col == apple_ptr.value.col
+        if ate_apple_row and ate_apple_col:
+            self.grow(SNAKE_GROW_RATE)
+            apple_ptr.value.place()
+            return True
+        
+        return False
     
     def grow(self, length):
         if not self.placed:
