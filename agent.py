@@ -111,7 +111,7 @@ class Agent(gym.Env):
         self.observation_space = spaces.Box(
             low=-500, # lower bound
             high=500, # upper bound
-            shape=(11,), # Expanded to include danger detection
+            shape=(15,), # Expanded to include danger + safe space detection
             dtype=np.float32 # data type (float)
         )
         self.state_size = self.observation_space.shape[0]
@@ -156,6 +156,12 @@ class Agent(gym.Env):
         dir_east = 1 if current_dir == Directions.EAST else 0
         dir_west = 1 if current_dir == Directions.WEST else 0
 
+        # Safe space counting (how far can we go in each direction before hitting obstacle)
+        safe_north = self.count_safe_spaces(head_pos[0], head_pos[1], -1, 0)
+        safe_south = self.count_safe_spaces(head_pos[0], head_pos[1], 1, 0)
+        safe_east = self.count_safe_spaces(head_pos[0], head_pos[1], 0, 1)
+        safe_west = self.count_safe_spaces(head_pos[0], head_pos[1], 0, -1)
+
         state = np.array([
             delta[0],  # row difference to apple
             delta[1],  # col difference to apple
@@ -168,6 +174,10 @@ class Agent(gym.Env):
             dir_east,
             dir_west,
             snake_ptr.value.length,
+            safe_north / 10.0,  # normalized (0-1 range)
+            safe_south / 10.0,
+            safe_east / 10.0,
+            safe_west / 10.0,
         ])
 
         return state
@@ -177,6 +187,18 @@ class Agent(gym.Env):
         from gameboard import gameboard_ptr
         marker = gameboard_ptr.value.get_marker(row, col)
         return marker == Markers.WALL or marker == Markers.SNAKE
+
+    def count_safe_spaces(self, row, col, delta_row, delta_col, max_depth=10):
+        """Count how many safe spaces exist in a direction (helps avoid traps)"""
+        from gameboard import gameboard_ptr
+        count = 0
+        for i in range(1, max_depth + 1):
+            new_row = row + (delta_row * i)
+            new_col = col + (delta_col * i)
+            if self.is_danger(new_row, new_col):
+                break
+            count += 1
+        return count
     
     def move(self):
         # get the best action for the current state
@@ -216,6 +238,20 @@ class Agent(gym.Env):
             # Heavy penalty for moving away from apple
             if new_dist > prev_dist:
                 reward -= 50  # Extra penalty for moving away
+
+            # Penalty for moving into tight spaces (trap avoidance)
+            total_safe_spaces = (
+                self.count_safe_spaces(head_pos[0], head_pos[1], -1, 0) +
+                self.count_safe_spaces(head_pos[0], head_pos[1], 1, 0) +
+                self.count_safe_spaces(head_pos[0], head_pos[1], 0, 1) +
+                self.count_safe_spaces(head_pos[0], head_pos[1], 0, -1)
+            )
+
+            # Penalize tight spaces when snake is long
+            if snake_ptr.value.length > 10 and total_safe_spaces < 8:
+                reward -= 30  # Moderate penalty for tight spaces
+            if snake_ptr.value.length > 15 and total_safe_spaces < 4:
+                reward -= 100  # Heavy penalty for very tight spaces
 
         # return reward if the snake reaches 100% length
         if not apple_ptr.value.placed:
