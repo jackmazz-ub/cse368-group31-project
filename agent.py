@@ -45,7 +45,7 @@ APPLE_REWARD = 15000  # Very high reward for eating apples
 LOSS_PENALTY = -5000  # Reduced penalty - don't be TOO afraid of dying
 STEP_PENALTY = -1  # Small penalty for each step to encourage efficiency
 
-RETRAIN = True # set to True to train on every initialization
+RETRAIN = False # set to True to train on every initialization
 
 """
 =====================================================================================================
