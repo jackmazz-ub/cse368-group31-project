@@ -275,7 +275,7 @@ class Agent(gym.Env):
                 if done:
                     break
 
-            print(f"Training Episode {i}/{TRAINING_EPISODES}, \tSteps: {j}, \tEpsilon: {round(epsilon, 3)}, \tReward: {int(total_reward)}, \tScore: {apples_eaten}")
+            print(f"Training Episode {i}/{TRAINING_EPISODES}, \tSteps: {j}, \tEpsilon: {round(epsilon, 3)},   \tReward: {int(total_reward)}, \t\tScore: {apples_eaten}")
 
             # reduce exploration rate
             epsilon = max(epsilon*EPSILON_DECAY, EPSILON_MIN)
