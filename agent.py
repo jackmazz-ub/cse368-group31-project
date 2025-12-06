@@ -1,4 +1,6 @@
 import gymnasium as gym
+import math
+import matplotlib.pyplot as plt
 import numpy as np
 import random
 import os
@@ -33,7 +35,7 @@ EPSILON_DECAY = 0.998 # slower decay = more exploration = more risk-taking
 EPSILON_MIN = 0.05 # higher minimum = always some exploration
 TAU = 0.005 # slower target network update for stability
 
-TRAINING_EPISODES = 5000 # More episodes for better learning
+TRAINING_EPISODES = 12000 # More episodes for better learning
 DIAGNOSIS_EPISODES = 12000
 MAX_STEPS = 2000 # Reduced - forces snake to be efficient
 
@@ -47,7 +49,9 @@ LOSS_PENALTY = -5000  # Reduced penalty - don't be TOO afraid of dying
 STEP_PENALTY = -1  # Small penalty for each step to encourage efficiency
 
 RETRAIN = False # set to True to train on every initialization
-DIAGNOSE = True # set to True to diagnose on every initialization
+DIAGNOSE = False # set to True to diagnose on every initialization
+
+STAT_PREC = 3 # number of decimal points to round when calculating statistics
 
 """
 =====================================================================================================
@@ -227,7 +231,7 @@ class Agent(gym.Env):
         epsilon = EPSILON_START
         step_count = 0
 
-        for i in range(1, TRAINING_EPISODES):        
+        for i in range(1, TRAINING_EPISODES+1):        
             # reset the state
             snake_ptr.value.place()
             apple_ptr.value.place()
@@ -238,7 +242,7 @@ class Agent(gym.Env):
             done = False
             apples_eaten = 0
 
-            for j in range(1, MAX_STEPS):
+            for j in range(1, MAX_STEPS+1):
                 # explore or exploit based on P(epsilon)
                 if np.random.rand() <= epsilon:
                     action = self.explore()
@@ -271,7 +275,7 @@ class Agent(gym.Env):
                 if done:
                     break
 
-            print(f"Episode: {i}/{TRAINING_EPISODES}, \tSteps: {j}, \tEpsilon: {round(epsilon, 3)}, \tReward: {int(total_reward)}, \tApples: {apples_eaten}")
+            print(f"Training Episode {i}/{TRAINING_EPISODES}, \tSteps: {j}, \tEpsilon: {round(epsilon, 3)}, \tReward: {int(total_reward)}, \Score: {apples_eaten}")
 
             # reduce exploration rate
             epsilon = max(epsilon*EPSILON_DECAY, EPSILON_MIN)
@@ -310,30 +314,75 @@ class Agent(gym.Env):
             target_param.data.copy_(TAU*online_param.data + (1.0-TAU)*target_param.data)
     
     def diagnose(self):
-        scores = {}
-        mean = 0.0
-        std = 0.0
-        
-        for i in range(1, DIAGNOSIS_EPISODES):
+        scores = {} # score -> number of occurrences
+        scores_list = []
+        max_score = 0
+        for i in range(1, DIAGNOSIS_EPISODES+1):
             # reset the state
             snake_ptr.value.place()
             apple_ptr.value.place()
             
             for j in range(1, MAX_STEPS):
-                self.move()
+                self.move() # exploit
                 if snake_ptr.value.crashing:
                     break
             
             score = snake_ptr.value.length
+            max_score = max(score, max_score)
             
             if score not in scores:
                 scores[score] = 0
-            
             scores[score] += 1
             
-            print(f"Episode: {i}/{DIAGNOSE_EPISODES}, \tSteps: {j}, \tApples: {apples_eaten}, \tEpsilon: {round(epsilon, 3)}, \tReward: {int(total_reward)}")
+            print(f"Diagnosis Episode {i}/{DIAGNOSIS_EPISODES}, \tScore: {score}")
         
-        print(scores)
+        n = DIAGNOSIS_EPISODES # number of samples
+        L = 3 # stdev distance from mean for control limits
+        
+        mean = 0.0 # average score
+        for item in scores.items():
+            mean += item[0]*item[1]
+        mean = mean/n
+        
+        stdev = 0.0 # standard deviation from mean
+        for item in scores.items():
+            stdev += item[1]*((item[0] - mean)**2)
+        stdev = math.sqrt(1/(n-1)*stdev)
+        
+        var = stdev**2
+        
+        ucl = mean + L*stdev # upper control limit
+        lcl = mean - L*stdev # lower control limit
+        
+        # round to STAT_PREC decimal points
+        mean = round(mean, STAT_PREC)
+        stdev = round(stdev, STAT_PREC)
+        var = round(var, STAT_PREC)
+        
+        plt_data = [0]*(max_score+1)
+        for i in range(len(plt_data)):
+            if i not in scores:
+                plt_data[i] = 0
+            else:
+                plt_data[i] = scores[i]
+        
+        plt_text = (
+            f"Mean: {mean}\n"
+            f"Standard Deviation: {stdev}\n"
+            f"Variance: {var}\n"
+        )
+        
+        plt.figure()
+        
+        plt.bar(range(len(plt_data)), plt_data)
+        
+        plt.xlabel("Score")
+        plt.ylabel("Number of Occurrences")
+        plt.title(f"Scores Over {n} Episodes")
+
+        plt.gcf().text(0.02, -0.05, plt_text, fontsize=11, va='top')
+        plt.tight_layout()
+        plt.savefig("data/diagnosis.pdf", format="pdf", bbox_inches="tight")
     
     def explore(self):
         return random.randrange(self.action_size)
