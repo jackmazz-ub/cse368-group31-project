@@ -27,6 +27,7 @@ from snake import Directions, snake_ptr
 """
 
 TRAINING_DATA_FILENAME = "data/training-data.h5"
+DIAGNOSIS_PLOT_FILENAME = "data/diagnosis-plot.pdf"
 
 ALPHA = 0.0005 # learning rate - reduced for more stable learning
 GAMMA = 0.95 # discount factor - reduced to focus more on immediate rewards (apples)
@@ -49,7 +50,7 @@ LOSS_PENALTY = -5000  # Reduced penalty - don't be TOO afraid of dying
 STEP_PENALTY = -1  # Small penalty for each step to encourage efficiency
 
 RETRAIN = False # set to True to train on every initialization
-DIAGNOSE = False # set to True to diagnose on every initialization
+DIAGNOSE = True # set to True to diagnose on every initialization
 
 STAT_PREC = 3 # number of decimal points to round when calculating statistics
 
@@ -315,7 +316,7 @@ class Agent(gym.Env):
     
     def diagnose(self):
         scores = {} # score -> number of occurrences
-        scores_list = []
+        min_score = gameboard_ptr.value.rows * gameboard_ptr.value.cols
         max_score = 0
         for i in range(1, DIAGNOSIS_EPISODES+1):
             # reset the state
@@ -328,6 +329,7 @@ class Agent(gym.Env):
                     break
             
             score = snake_ptr.value.length
+            min_score = min(score, min_score)
             max_score = max(score, max_score)
             
             if score not in scores:
@@ -351,9 +353,6 @@ class Agent(gym.Env):
         
         var = stdev**2
         
-        ucl = mean + L*stdev # upper control limit
-        lcl = mean - L*stdev # lower control limit
-        
         # round to STAT_PREC decimal points
         mean = round(mean, STAT_PREC)
         stdev = round(stdev, STAT_PREC)
@@ -367,6 +366,7 @@ class Agent(gym.Env):
                 plt_data[i] = scores[i]
         
         plt_text = (
+            f"Range: [{min_score}, {max_score}]\n"
             f"Mean: {mean}\n"
             f"Standard Deviation: {stdev}\n"
             f"Variance: {var}\n"
@@ -378,11 +378,11 @@ class Agent(gym.Env):
         
         plt.xlabel("Score")
         plt.ylabel("Number of Occurrences")
-        plt.title(f"Scores Over {n} Episodes")
+        plt.title(f"Scores Over {n} Episodes (After Training)")
 
         plt.gcf().text(0.02, -0.05, plt_text, fontsize=11, va='top')
         plt.tight_layout()
-        plt.savefig("data/diagnosis.pdf", format="pdf", bbox_inches="tight")
+        plt.savefig(DIAGNOSIS_PLOT_FILENAME, format="pdf", bbox_inches="tight")
     
     def explore(self):
         return random.randrange(self.action_size)
