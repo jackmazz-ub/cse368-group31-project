@@ -144,10 +144,10 @@ class Agent(gym.Env):
             ]
 
         # Detect danger in all 4 directions (wall or snake body)
-        danger_north = 1 if gamboard_ptr.value.is_blocked(head_pos[0] - 1, head_pos[1]) else 0
-        danger_south = 1 if gamboard_ptr.value.is_blocked(head_pos[0] + 1, head_pos[1]) else 0
-        danger_east = 1 if gamboard_ptr.value.is_blocked(head_pos[0], head_pos[1] + 1) else 0
-        danger_west = 1 if gamboard_ptr.value.is_blocked(head_pos[0], head_pos[1] - 1) else 0
+        danger_north = 1 if gameboard_ptr.value.is_blocked(head_pos[0] - 1, head_pos[1]) else 0
+        danger_south = 1 if gameboard_ptr.value.is_blocked(head_pos[0] + 1, head_pos[1]) else 0
+        danger_east = 1 if gameboard_ptr.value.is_blocked(head_pos[0], head_pos[1] + 1) else 0
+        danger_west = 1 if gameboard_ptr.value.is_blocked(head_pos[0], head_pos[1] - 1) else 0
 
         # Current direction
         current_dir = snake_ptr.value.head.direc
