@@ -121,12 +121,12 @@ class Gameboard:
 
         pygame.display.update()
     
-    def list_cells(self, marker=None):
+    def list_cells(self, match_markers=None):
         cells = []
         for i in range(self.rows):
             for j in range(self.cols):
                 cell = self.cells[i][j]
-                if marker is None or cell.marker == marker:
+                if match_markers is None or cell.marker in match_markers:
                     cells.append(cell)
         
         return cells
@@ -141,8 +141,10 @@ class Gameboard:
         
         return Markers.WALL
     
-    def set_marker(self, row, col, marker):
-        if self.get_marker(row, col) != Markers.WALL:
+    def set_marker(self, row, col, marker, match_markers=None):
+        prev_marker = self.get_marker(row, col)
+        matching = match_markers is None or prev_marker in match_markers
+        if prev_marker != Markers.WALL and matching:
             self.cells[row][col].marker = marker
     
     def is_blocked(self, row, col):

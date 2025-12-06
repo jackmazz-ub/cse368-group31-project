@@ -27,7 +27,8 @@ V_SPAWN_PCT = 0.500 # percent of display to spawn vertically
 H_SPAWN_PCT = 0.325 # percent of display to spawn horizontally
 FOOTER_PCT = 0.1 # percent of display to use for the footer
 
-TICKRATE = 10 # display refresh rate
+MANUAL_TICKRATE = 10 # display refresh rate for manual mode
+AUTO_TICKRATE = 30 # display refresh rate for manual mode
 CRASH_DELAY = 50 # ms until snake crashes (gives player time to react)
 
 CRASH_EVENT = pygame.USEREVENT # sent when snake crashes
@@ -224,8 +225,11 @@ def main(argv):
                 pygame.time.set_timer(CRASH_EVENT, CRASH_DELAY) # activate the CRASH_EVENT in CRASH_DELAY ms
                 crash_pending = True
         
-        # delay the mainloop by TICKRATE
-        clock.tick(TICKRATE)
+        # delay the mainloop by TICKRATE depending on gamemode
+        if gamemode == Gamemodes.MANUAL:
+            clock.tick(MANUAL_TICKRATE)
+        elif gamemode == Gamemodes.AUTO:
+            clock.tick(AUTO_TICKRATE)
     
     agent_ptr.value.close()
     pygame.quit()
