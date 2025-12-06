@@ -33,7 +33,8 @@ EPSILON_DECAY = 0.998 # slower decay = more exploration = more risk-taking
 EPSILON_MIN = 0.05 # higher minimum = always some exploration
 TAU = 0.005 # slower target network update for stability
 
-EPISODES = 5000 # More episodes for better learning
+TRAINING_EPISODES = 5000 # More episodes for better learning
+DIAGNOSIS_EPISODES = 12000
 MAX_STEPS = 2000 # Reduced - forces snake to be efficient
 
 BATCH_SIZE = 128  # Increased for more stable learning
@@ -46,6 +47,7 @@ LOSS_PENALTY = -5000  # Reduced penalty - don't be TOO afraid of dying
 STEP_PENALTY = -1  # Small penalty for each step to encourage efficiency
 
 RETRAIN = False # set to True to train on every initialization
+DIAGNOSE = True # set to True to diagnose on every initialization
 
 """
 =====================================================================================================
@@ -130,6 +132,9 @@ class Agent(gym.Env):
             self.load_training_data()
         else:
             self.train()
+        
+        if DIAGNOSE:
+            self.diagnose()
             
     def get_state(self):
         head_pos = [snake_ptr.value.head.row, snake_ptr.value.head.col]
@@ -222,7 +227,7 @@ class Agent(gym.Env):
         epsilon = EPSILON_START
         step_count = 0
 
-        for i in range(1, EPISODES):        
+        for i in range(1, TRAINING_EPISODES):        
             # reset the state
             snake_ptr.value.place()
             apple_ptr.value.place()
@@ -266,7 +271,7 @@ class Agent(gym.Env):
                 if done:
                     break
 
-            print(f"Episode: {i}/{EPISODES}, \tSteps: {j}, \tApples: {apples_eaten}, \tEpsilon: {round(epsilon, 3)}, \tReward: {int(total_reward)}")
+            print(f"Episode: {i}/{TRAINING_EPISODES}, \tSteps: {j}, \tEpsilon: {round(epsilon, 3)}, \tReward: {int(total_reward)}, \tApples: {apples_eaten}")
 
             # reduce exploration rate
             epsilon = max(epsilon*EPSILON_DECAY, EPSILON_MIN)
@@ -303,6 +308,32 @@ class Agent(gym.Env):
         params = zip(self.target_model.parameters(), self.policy_model.parameters())
         for target_param, online_param in params:
             target_param.data.copy_(TAU*online_param.data + (1.0-TAU)*target_param.data)
+    
+    def diagnose(self):
+        scores = {}
+        mean = 0.0
+        std = 0.0
+        
+        for i in range(1, DIAGNOSIS_EPISODES):
+            # reset the state
+            snake_ptr.value.place()
+            apple_ptr.value.place()
+            
+            for j in range(1, MAX_STEPS):
+                self.move()
+                if snake_ptr.value.crashing:
+                    break
+            
+            score = snake_ptr.value.length
+            
+            if score not in scores:
+                scores[score] = 0
+            
+            scores[score] += 1
+            
+            print(f"Episode: {i}/{DIAGNOSE_EPISODES}, \tSteps: {j}, \tApples: {apples_eaten}, \tEpsilon: {round(epsilon, 3)}, \tReward: {int(total_reward)}")
+        
+        print(scores)
     
     def explore(self):
         return random.randrange(self.action_size)
