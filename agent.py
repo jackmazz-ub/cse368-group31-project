@@ -27,6 +27,7 @@ from snake import Directions, snake_ptr
 """
 
 TRAINING_DATA_FILENAME = "data/training-data.h5"
+TRAINING_PLOT_FILENAME = "data/training-plot.pdf"
 DIAGNOSIS_PLOT_FILENAME = "data/diagnosis-plot.pdf"
 
 ALPHA = 0.0005 # learning rate - reduced for more stable learning
@@ -36,8 +37,8 @@ EPSILON_DECAY = 0.998 # slower decay = more exploration = more risk-taking
 EPSILON_MIN = 0.05 # higher minimum = always some exploration
 TAU = 0.005 # slower target network update for stability
 
-TRAINING_EPISODES = 12000 # More episodes for better learning
-DIAGNOSIS_EPISODES = 12000
+TRAINING_EPISODES = 5000
+DIAGNOSIS_EPISODES = 10000
 MAX_STEPS = 2000 # Reduced - forces snake to be efficient
 
 BATCH_SIZE = 128  # Increased for more stable learning
@@ -50,7 +51,7 @@ LOSS_PENALTY = -5000  # Reduced penalty - don't be TOO afraid of dying
 STEP_PENALTY = -1  # Small penalty for each step to encourage efficiency
 
 RETRAIN = False # set to True to train on every initialization
-DIAGNOSE = True # set to True to diagnose on every initialization
+DIAGNOSE = False # set to True to diagnose on every initialization
 
 STAT_PREC = 3 # number of decimal points to round when calculating statistics
 
@@ -229,6 +230,12 @@ class Agent(gym.Env):
         return self.get_state(), reward, False
     
     def train(self):
+        scores = []
+        mean_steps = 0.0
+        mean_score = 0.0
+        min_score = gameboard_ptr.value.rows * gameboard_ptr.value.cols
+        max_score = 0
+    
         epsilon = EPSILON_START
         step_count = 0
 
@@ -241,7 +248,6 @@ class Agent(gym.Env):
 
             total_reward = 0.0
             done = False
-            apples_eaten = 0
 
             for j in range(1, MAX_STEPS+1):
                 # explore or exploit based on P(epsilon)
@@ -252,10 +258,6 @@ class Agent(gym.Env):
 
                 next_state, reward, done = self.step(action)
                 total_reward += reward
-
-                # Track apples eaten
-                if reward >= APPLE_REWARD:
-                    apples_eaten += 1
 
                 # add the step information to memory
                 self.memory.append((
@@ -275,18 +277,38 @@ class Agent(gym.Env):
 
                 if done:
                     break
-
-            print(f"Training Episode {i}/{TRAINING_EPISODES}, \tSteps: {j}, \tEpsilon: {round(epsilon, 3)},   \tReward: {int(total_reward)}, \t\tScore: {apples_eaten}")
+            
+            n = i
+            steps = j
+            score = snake_ptr.value.length
+            
+            scores.append(score)
+            mean_steps = (mean_steps*n + steps)/n
+            mean_score = (mean_score*n + score)/n
+            min_score = min(score, min_score)
+            max_score = max(score, max_score)
+            
+            print(f"Training Episode {i}/{TRAINING_EPISODES}, \tSteps: {j}, \tEpsilon: {round(epsilon, 3)},   \tReward: {int(total_reward)}, \t\tScore: {score}")
 
             # reduce exploration rate
             epsilon = max(epsilon*EPSILON_DECAY, EPSILON_MIN)
 
             # Save progress every 100 episodes
-            if (i + 1) % 100 == 0:
+            if i % 100 == 0:
                 self.save_training_data()
-                print(f"Progress saved at episode {i+1}")
+                self.save_training_plot(scores, i)
+                print(f"Progress saved at episode {i}")
 
         self.save_training_data()
+        self.save_training_plot(
+            scores, 
+            mean_steps, 
+            mean_score, 
+            min_score, 
+            max_score, 
+            TRAINING_EPISODES,
+        )
+        
         print("Training complete!")
     
     def replay(self):
@@ -316,6 +338,8 @@ class Agent(gym.Env):
     
     def diagnose(self):
         scores = {} # score -> number of occurrences
+        mean_steps = 0.0
+        mean_score = 0.0
         min_score = gameboard_ptr.value.rows * gameboard_ptr.value.cols
         max_score = 0
         for i in range(1, DIAGNOSIS_EPISODES+1):
@@ -328,61 +352,29 @@ class Agent(gym.Env):
                 if snake_ptr.value.crashing:
                     break
             
+            n = i
+            steps = j
             score = snake_ptr.value.length
-            min_score = min(score, min_score)
-            max_score = max(score, max_score)
             
             if score not in scores:
                 scores[score] = 0
             scores[score] += 1
             
+            mean_steps = (mean_steps*n + steps)/n
+            mean_score = (mean_score*n + score)/n
+            min_score = min(score, min_score)
+            max_score = max(score, max_score)
+            
             print(f"Diagnosis Episode {i}/{DIAGNOSIS_EPISODES}, \tScore: {score}")
         
-        n = DIAGNOSIS_EPISODES # number of samples
-        L = 3 # stdev distance from mean for control limits
-        
-        mean = 0.0 # average score
-        for item in scores.items():
-            mean += item[0]*item[1]
-        mean = mean/n
-        
-        stdev = 0.0 # standard deviation from mean
-        for item in scores.items():
-            stdev += item[1]*((item[0] - mean)**2)
-        stdev = math.sqrt(1/(n-1)*stdev)
-        
-        var = stdev**2
-        
-        # round to STAT_PREC decimal points
-        mean = round(mean, STAT_PREC)
-        stdev = round(stdev, STAT_PREC)
-        var = round(var, STAT_PREC)
-        
-        plt_data = [0]*(max_score+1)
-        for i in range(len(plt_data)):
-            if i not in scores:
-                plt_data[i] = 0
-            else:
-                plt_data[i] = scores[i]
-        
-        plt_text = (
-            f"Range: [{min_score}, {max_score}]\n"
-            f"Mean: {mean}\n"
-            f"Standard Deviation: {stdev}\n"
-            f"Variance: {var}\n"
+        self.save_diagnostics_plot(
+            scores, 
+            mean_steps,
+            mean_score,
+            min_score,
+            max_score,
+            DIAGNOSIS_EPISODES,
         )
-        
-        plt.figure()
-        
-        plt.bar(range(len(plt_data)), plt_data)
-        
-        plt.xlabel("Score")
-        plt.ylabel("Number of Occurrences")
-        plt.title(f"Scores Over {n} Episodes (After Training)")
-
-        plt.gcf().text(0.02, -0.05, plt_text, fontsize=11, va='top')
-        plt.tight_layout()
-        plt.savefig(DIAGNOSIS_PLOT_FILENAME, format="pdf", bbox_inches="tight")
     
     def explore(self):
         return random.randrange(self.action_size)
@@ -397,3 +389,72 @@ class Agent(gym.Env):
     
     def save_training_data(self):
         torch.save(self.target_model.state_dict(), TRAINING_DATA_FILENAME)
+        
+    def save_training_plot(self, scores, mean_steps, mean_score, min_score, max_score, n):
+        # average score
+        mean = 0.0
+        for score in scores:
+            mean += score
+        mean = mean/n
+        
+        # standard deviation from mean
+        stdev = 0.0
+        for score in scores:
+            stdev += (score - mean)**2
+        stdev = math.sqrt(1/(n-1)*stdev)
+        
+        var = stdev**2
+        
+        # round to STAT_PREC decimal points
+        mean = round(mean, STAT_PREC)
+        stdev = round(stdev, STAT_PREC)
+        var = round(var, STAT_PREC)
+    
+        plt_text = (
+            f"Score Range: [{min_score}, {max_score}]\n"
+            f"Mean Score: {mean_score}\n"
+            f"Min Score {min_score}\n"
+            f"Min Score {max_score}\n"
+            f"Mean Steps {mean_steps}\n"
+        )
+        
+        plt.figure()
+        
+        plt.plot(range(1, len(scores)+1)[::10], scores[::10])
+        
+        plt.xlabel("Episode")
+        plt.ylabel("Score")
+        plt.title(f"Scores Over {n} Episodes (Before Training)")
+
+        plt.gcf().text(0.02, -0.05, plt_text, fontsize=11, va="top")
+        plt.tight_layout()
+        plt.savefig(TRAINING_PLOT_FILENAME, format="pdf", bbox_inches="tight")
+    
+    def save_diagnostics_plot(self, scores, mean_steps, mean_score, min_score, max_score, n):    
+        plt_data = [0]*(max_score+1)
+        for i in range(len(plt_data)):
+            if i not in scores:
+                plt_data[i] = 0
+            else:
+                plt_data[i] = scores[i]
+        
+        plt_text = (
+            f"Score Range: [{min_score}, {max_score}]\n"
+            f"Mean Score: {mean_score}\n"
+            f"Min Score {min_score}\n"
+            f"Min Score {max_score}\n"
+            f"Mean Steps {mean_steps}\n"
+        )
+        
+        plt.figure()
+        
+        plt.bar(range(len(plt_data)), plt_data)
+        
+        plt.xlabel("Score")
+        plt.ylabel("Number of Occurrences")
+        plt.title(f"Scores Over {n} Episodes (After Training)")
+
+        plt.gcf().text(0.02, -0.05, plt_text, fontsize=11, va='top')
+        plt.tight_layout()
+        plt.savefig(DIAGNOSIS_PLOT_FILENAME, format="pdf", bbox_inches="tight")
+        
