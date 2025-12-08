@@ -51,7 +51,7 @@ LOSS_PENALTY = -5000  # Reduced penalty - don't be TOO afraid of dying
 STEP_PENALTY = -1  # Small penalty for each step to encourage efficiency
 
 RETRAIN = False # set to True to train on every initialization
-DIAGNOSE = False # set to True to diagnose on every initialization
+DIAGNOSE = True # set to True to diagnose on every initialization
 
 STAT_PREC = 3 # number of decimal points to round when calculating statistics
 
@@ -283,8 +283,8 @@ class Agent(gym.Env):
             score = snake_ptr.value.length
             
             scores.append(score)
-            mean_steps = (mean_steps*n + steps)/n
-            mean_score = (mean_score*n + score)/n
+            mean_steps = (mean_steps*(n-1) + steps)/n
+            mean_score = (mean_score*(n-1) + score)/n
             min_score = min(score, min_score)
             max_score = max(score, max_score)
             
@@ -360,8 +360,8 @@ class Agent(gym.Env):
                 scores[score] = 0
             scores[score] += 1
             
-            mean_steps = (mean_steps*n + steps)/n
-            mean_score = (mean_score*n + score)/n
+            mean_steps = (mean_steps*(n-1) + steps)/n
+            mean_score = (mean_score*(n-1) + score)/n
             min_score = min(score, min_score)
             max_score = max(score, max_score)
             
@@ -391,31 +391,13 @@ class Agent(gym.Env):
         torch.save(self.target_model.state_dict(), TRAINING_DATA_FILENAME)
         
     def save_training_plot(self, scores, mean_steps, mean_score, min_score, max_score, n):
-        # average score
-        mean = 0.0
-        for score in scores:
-            mean += score
-        mean = mean/n
-        
-        # standard deviation from mean
-        stdev = 0.0
-        for score in scores:
-            stdev += (score - mean)**2
-        stdev = math.sqrt(1/(n-1)*stdev)
-        
-        var = stdev**2
-        
-        # round to STAT_PREC decimal points
-        mean = round(mean, STAT_PREC)
-        stdev = round(stdev, STAT_PREC)
-        var = round(var, STAT_PREC)
+        mean_steps = round(mean_steps, STAT_PREC)
+        mean_score = round(mean_score, STAT_PREC)
     
         plt_text = (
             f"Score Range: [{min_score}, {max_score}]\n"
             f"Mean Score: {mean_score}\n"
-            f"Min Score {min_score}\n"
-            f"Min Score {max_score}\n"
-            f"Mean Steps {mean_steps}\n"
+            f"Mean Steps: {mean_steps}\n"
         )
         
         plt.figure()
@@ -438,12 +420,13 @@ class Agent(gym.Env):
             else:
                 plt_data[i] = scores[i]
         
+        mean_steps = round(mean_steps, STAT_PREC)
+        mean_score = round(mean_score, STAT_PREC)
+        
         plt_text = (
             f"Score Range: [{min_score}, {max_score}]\n"
             f"Mean Score: {mean_score}\n"
-            f"Min Score {min_score}\n"
-            f"Min Score {max_score}\n"
-            f"Mean Steps {mean_steps}\n"
+            f"Mean Steps: {mean_steps}\n"
         )
         
         plt.figure()
