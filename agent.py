@@ -51,7 +51,7 @@ LOSS_PENALTY = -5000  # Reduced penalty - don't be TOO afraid of dying
 STEP_PENALTY = -1  # Small penalty for each step to encourage efficiency
 
 RETRAIN = False # set to True to train on every initialization
-DIAGNOSE = True # set to True to diagnose on every initialization
+DIAGNOSE = False # set to True to diagnose on every initialization
 
 STAT_PREC = 3 # number of decimal points to round when calculating statistics
 
