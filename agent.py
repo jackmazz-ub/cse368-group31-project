@@ -296,7 +296,14 @@ class Agent(gym.Env):
             # Save progress every 100 episodes
             if i % 100 == 0:
                 self.save_training_data()
-                self.save_training_plot(scores, i)
+                self.save_training_plot(
+                    scores, 
+                    mean_steps, 
+                    mean_score, 
+                    min_score, 
+                    max_score, 
+                    n,
+                )
                 print(f"Progress saved at episode {i}")
 
         self.save_training_data()
@@ -366,6 +373,18 @@ class Agent(gym.Env):
             max_score = max(score, max_score)
             
             print(f"Diagnosis Episode {i}/{DIAGNOSIS_EPISODES}, \tScore: {score}")
+            
+            # Save progress every 100 episodes
+            if i % 100 == 0:
+                self.save_diagnostics_plot(
+                    scores, 
+                    mean_steps,
+                    mean_score,
+                    min_score,
+                    max_score,
+                    n,
+                )
+                print(f"Progress saved at episode {i}")
         
         self.save_diagnostics_plot(
             scores, 
@@ -411,6 +430,7 @@ class Agent(gym.Env):
         plt.gcf().text(0.02, -0.05, plt_text, fontsize=11, va="top")
         plt.tight_layout()
         plt.savefig(TRAINING_PLOT_FILENAME, format="pdf", bbox_inches="tight")
+        plt.close()
     
     def save_diagnostics_plot(self, scores, mean_steps, mean_score, min_score, max_score, n):    
         plt_data = [0]*(max_score+1)
@@ -440,4 +460,5 @@ class Agent(gym.Env):
         plt.gcf().text(0.02, -0.05, plt_text, fontsize=11, va='top')
         plt.tight_layout()
         plt.savefig(DIAGNOSIS_PLOT_FILENAME, format="pdf", bbox_inches="tight")
+        plt.close()
         
