@@ -1,4 +1,6 @@
 import gymnasium as gym
+import math
+import matplotlib.pyplot as plt
 import numpy as np
 import random
 import os
@@ -25,6 +27,8 @@ from snake import Directions, snake_ptr
 """
 
 TRAINING_DATA_FILENAME = "data/training-data.h5"
+TRAINING_PLOT_FILENAME = "data/training-plot.pdf"
+DIAGNOSIS_PLOT_FILENAME = "data/diagnosis-plot.pdf"
 
 ALPHA = 0.0005 # learning rate - reduced for more stable learning
 GAMMA = 0.95 # discount factor - reduced to focus more on immediate rewards (apples)
@@ -33,7 +37,8 @@ EPSILON_DECAY = 0.998 # slower decay = more exploration = more risk-taking
 EPSILON_MIN = 0.05 # higher minimum = always some exploration
 TAU = 0.005 # slower target network update for stability
 
-EPISODES = 5000 # More episodes for better learning
+TRAINING_EPISODES = 5000
+DIAGNOSIS_EPISODES = 10000
 MAX_STEPS = 2000 # Reduced - forces snake to be efficient
 
 BATCH_SIZE = 128  # Increased for more stable learning
@@ -46,6 +51,9 @@ LOSS_PENALTY = -5000  # Reduced penalty - don't be TOO afraid of dying
 STEP_PENALTY = -1  # Small penalty for each step to encourage efficiency
 
 RETRAIN = False # set to True to train on every initialization
+DIAGNOSE = False # set to True to diagnose on every initialization
+
+STAT_PREC = 3 # number of decimal points to round when calculating statistics
 
 """
 =====================================================================================================
@@ -130,6 +138,9 @@ class Agent(gym.Env):
             self.load_training_data()
         else:
             self.train()
+        
+        if DIAGNOSE:
+            self.diagnose()
             
     def get_state(self):
         head_pos = [snake_ptr.value.head.row, snake_ptr.value.head.col]
@@ -219,10 +230,16 @@ class Agent(gym.Env):
         return self.get_state(), reward, False
     
     def train(self):
+        scores = []
+        mean_steps = 0.0
+        mean_score = 0.0
+        min_score = gameboard_ptr.value.rows * gameboard_ptr.value.cols
+        max_score = 0
+    
         epsilon = EPSILON_START
         step_count = 0
 
-        for i in range(1, EPISODES):        
+        for i in range(1, TRAINING_EPISODES+1):        
             # reset the state
             snake_ptr.value.place()
             apple_ptr.value.place()
@@ -231,9 +248,8 @@ class Agent(gym.Env):
 
             total_reward = 0.0
             done = False
-            apples_eaten = 0
 
-            for j in range(1, MAX_STEPS):
+            for j in range(1, MAX_STEPS+1):
                 # explore or exploit based on P(epsilon)
                 if np.random.rand() <= epsilon:
                     action = self.explore()
@@ -242,10 +258,6 @@ class Agent(gym.Env):
 
                 next_state, reward, done = self.step(action)
                 total_reward += reward
-
-                # Track apples eaten
-                if reward >= APPLE_REWARD:
-                    apples_eaten += 1
 
                 # add the step information to memory
                 self.memory.append((
@@ -265,18 +277,45 @@ class Agent(gym.Env):
 
                 if done:
                     break
-
-            print(f"Episode: {i}/{EPISODES}, \tSteps: {j}, \tApples: {apples_eaten}, \tEpsilon: {round(epsilon, 3)}, \tReward: {int(total_reward)}")
+            
+            n = i
+            steps = j
+            score = snake_ptr.value.length
+            
+            scores.append(score)
+            mean_steps = (mean_steps*(n-1) + steps)/n
+            mean_score = (mean_score*(n-1) + score)/n
+            min_score = min(score, min_score)
+            max_score = max(score, max_score)
+            
+            print(f"Training Episode {i}/{TRAINING_EPISODES}, \tSteps: {j}, \tEpsilon: {round(epsilon, 3)},   \tReward: {int(total_reward)}, \t\tScore: {score}")
 
             # reduce exploration rate
             epsilon = max(epsilon*EPSILON_DECAY, EPSILON_MIN)
 
             # Save progress every 100 episodes
-            if (i + 1) % 100 == 0:
+            if i % 100 == 0:
                 self.save_training_data()
-                print(f"Progress saved at episode {i+1}")
+                self.save_training_plot(
+                    scores, 
+                    mean_steps, 
+                    mean_score, 
+                    min_score, 
+                    max_score, 
+                    n,
+                )
+                print(f"Progress saved at episode {i}")
 
         self.save_training_data()
+        self.save_training_plot(
+            scores, 
+            mean_steps, 
+            mean_score, 
+            min_score, 
+            max_score, 
+            TRAINING_EPISODES,
+        )
+        
         print("Training complete!")
     
     def replay(self):
@@ -304,6 +343,58 @@ class Agent(gym.Env):
         for target_param, online_param in params:
             target_param.data.copy_(TAU*online_param.data + (1.0-TAU)*target_param.data)
     
+    def diagnose(self):
+        scores = {} # score -> number of occurrences
+        mean_steps = 0.0
+        mean_score = 0.0
+        min_score = gameboard_ptr.value.rows * gameboard_ptr.value.cols
+        max_score = 0
+        for i in range(1, DIAGNOSIS_EPISODES+1):
+            # reset the state
+            snake_ptr.value.place()
+            apple_ptr.value.place()
+            
+            for j in range(1, MAX_STEPS):
+                self.move() # exploit
+                if snake_ptr.value.crashing:
+                    break
+            
+            n = i
+            steps = j
+            score = snake_ptr.value.length
+            
+            if score not in scores:
+                scores[score] = 0
+            scores[score] += 1
+            
+            mean_steps = (mean_steps*(n-1) + steps)/n
+            mean_score = (mean_score*(n-1) + score)/n
+            min_score = min(score, min_score)
+            max_score = max(score, max_score)
+            
+            print(f"Diagnosis Episode {i}/{DIAGNOSIS_EPISODES}, \tScore: {score}")
+            
+            # Save progress every 100 episodes
+            if i % 100 == 0:
+                self.save_diagnostics_plot(
+                    scores, 
+                    mean_steps,
+                    mean_score,
+                    min_score,
+                    max_score,
+                    n,
+                )
+                print(f"Progress saved at episode {i}")
+        
+        self.save_diagnostics_plot(
+            scores, 
+            mean_steps,
+            mean_score,
+            min_score,
+            max_score,
+            DIAGNOSIS_EPISODES,
+        )
+    
     def explore(self):
         return random.randrange(self.action_size)
     
@@ -317,3 +408,57 @@ class Agent(gym.Env):
     
     def save_training_data(self):
         torch.save(self.target_model.state_dict(), TRAINING_DATA_FILENAME)
+        
+    def save_training_plot(self, scores, mean_steps, mean_score, min_score, max_score, n):
+        mean_steps = round(mean_steps, STAT_PREC)
+        mean_score = round(mean_score, STAT_PREC)
+    
+        plt_text = (
+            f"Score Range: [{min_score}, {max_score}]\n"
+            f"Mean Score: {mean_score}\n"
+            f"Mean Steps: {mean_steps}\n"
+        )
+        
+        plt.figure()
+        
+        plt.plot(range(1, len(scores)+1)[::10], scores[::10])
+        
+        plt.xlabel("Episode")
+        plt.ylabel("Score")
+        plt.title(f"Scores Over {n} Episodes (Before Training)")
+
+        plt.gcf().text(0.02, -0.05, plt_text, fontsize=11, va="top")
+        plt.tight_layout()
+        plt.savefig(TRAINING_PLOT_FILENAME, format="pdf", bbox_inches="tight")
+        plt.close()
+    
+    def save_diagnostics_plot(self, scores, mean_steps, mean_score, min_score, max_score, n):    
+        plt_data = [0]*(max_score+1)
+        for i in range(len(plt_data)):
+            if i not in scores:
+                plt_data[i] = 0
+            else:
+                plt_data[i] = scores[i]
+        
+        mean_steps = round(mean_steps, STAT_PREC)
+        mean_score = round(mean_score, STAT_PREC)
+        
+        plt_text = (
+            f"Score Range: [{min_score}, {max_score}]\n"
+            f"Mean Score: {mean_score}\n"
+            f"Mean Steps: {mean_steps}\n"
+        )
+        
+        plt.figure()
+        
+        plt.bar(range(len(plt_data)), plt_data)
+        
+        plt.xlabel("Score")
+        plt.ylabel("Number of Occurrences")
+        plt.title(f"Scores Over {n} Episodes (After Training)")
+
+        plt.gcf().text(0.02, -0.05, plt_text, fontsize=11, va='top')
+        plt.tight_layout()
+        plt.savefig(DIAGNOSIS_PLOT_FILENAME, format="pdf", bbox_inches="tight")
+        plt.close()
+        
