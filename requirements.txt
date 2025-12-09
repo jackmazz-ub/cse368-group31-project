@@ -1,4 +1,5 @@
 gymnasium
+ipython
 numpy
 pygame
 torch
