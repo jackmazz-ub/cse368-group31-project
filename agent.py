@@ -30,25 +30,25 @@ TRAINING_DATA_FILENAME = "data/training-data.h5"
 TRAINING_PLOT_FILENAME = "data/training-plot.pdf"
 DIAGNOSIS_PLOT_FILENAME = "data/diagnosis-plot.pdf"
 
-ALPHA = 0.0005 # learning rate - reduced for more stable learning
-GAMMA = 0.95 # discount factor - reduced to focus more on immediate rewards (apples)
+ALPHA = 0.0005 # learning rate
+GAMMA = 0.95 # discount factor
 EPSILON_START = 1.0 # exploration rate
-EPSILON_DECAY = 0.998 # slower decay = more exploration = more risk-taking
-EPSILON_MIN = 0.05 # higher minimum = always some exploration
-TAU = 0.005 # slower target network update for stability
+EPSILON_DECAY = 0.998
+EPSILON_MIN = 0.05 #
+TAU = 0.005 #
 
 TRAINING_EPISODES = 5000
 DIAGNOSIS_EPISODES = 10000
-MAX_STEPS = 2000 # Reduced - forces snake to be efficient
+MAX_STEPS = 2000
 
-BATCH_SIZE = 128  # Increased for more stable learning
-MEMORY_SIZE = 100000  # Reduced to save memory and speed up sampling
-UPDATE_FREQUENCY = 4  # Update network every N steps
+BATCH_SIZE = 128
+MEMORY_SIZE = 100000
+UPDATE_FREQUENCY = 4
 
 WIN_REWARD = 50000
-APPLE_REWARD = 15000  # Very high reward for eating apples
-LOSS_PENALTY = -5000  # Reduced penalty - don't be TOO afraid of dying
-STEP_PENALTY = -1  # Small penalty for each step to encourage efficiency
+APPLE_REWARD = 15000
+LOSS_PENALTY = -5000
+STEP_PENALTY = -1
 
 RETRAIN = False # set to True to train on every initialization
 DIAGNOSE = False # set to True to diagnose on every initialization
@@ -87,13 +87,12 @@ class DQN(nn.Module):
         super(DQN, self).__init__()
         self.state_size = state_size
         self.action_size = action_size
-        # Optimized architecture: deeper network with dropout for better generalization
         self.fc1 = nn.Linear(state_size, 128)
         self.fc2 = nn.Linear(128, 128)
         self.fc3 = nn.Linear(128, 64)
         self.fc4 = nn.Linear(64, action_size)
         self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(0.2)  # Prevent overfitting
+        self.dropout = nn.Dropout(0.2)
         self.optimizer = optim.Adam(self.parameters(), lr=ALPHA)
         self.loss_fn = nn.MSELoss()
 
@@ -106,7 +105,7 @@ class DQN(nn.Module):
         x = self.fc4(x)
         return x
     
-    def train_step(self, state, target):
+    def step(self, state, target):
         self.optimizer.zero_grad()
         pred = self.forward(state)
         loss = self.loss_fn(pred, target)
@@ -119,7 +118,7 @@ class Agent(gym.Env):
         self.observation_space = spaces.Box(
             low=-500, # lower bound
             high=500, # upper bound
-            shape=(11,), # Expanded to include danger detection
+            shape=(11,),
             dtype=np.float32 # data type (float)
         )
         self.state_size = self.observation_space.shape[0]
@@ -153,14 +152,12 @@ class Agent(gym.Env):
                 head_pos[0] - apple_pos[0], # row difference
                 head_pos[1] - apple_pos[1], # col difference
             ]
-
-        # Detect danger in all 4 directions (wall or snake body)
+        
         danger_north = 1 if gameboard_ptr.value.is_blocked(head_pos[0] - 1, head_pos[1]) else 0
         danger_south = 1 if gameboard_ptr.value.is_blocked(head_pos[0] + 1, head_pos[1]) else 0
         danger_east = 1 if gameboard_ptr.value.is_blocked(head_pos[0], head_pos[1] + 1) else 0
         danger_west = 1 if gameboard_ptr.value.is_blocked(head_pos[0], head_pos[1] - 1) else 0
-
-        # Current direction
+        
         current_dir = snake_ptr.value.head.direc
         dir_north = 1 if current_dir == Directions.NORTH else 0
         dir_south = 1 if current_dir == Directions.SOUTH else 0
@@ -168,8 +165,8 @@ class Agent(gym.Env):
         dir_west = 1 if current_dir == Directions.WEST else 0
 
         state = np.array([
-            delta[0],  # row difference to apple
-            delta[1],  # col difference to apple
+            delta[0], # row difference to apple
+            delta[1], # col difference to apple
             danger_north,
             danger_south,
             danger_east,
@@ -192,7 +189,7 @@ class Agent(gym.Env):
         return snake_ptr.value.move()
     
     def step(self, action):
-        # Get previous distance to apple
+        # get previous distance to apple
         head_pos = [snake_ptr.value.head.row, snake_ptr.value.head.col]
         apple_pos = [apple_ptr.value.row, apple_ptr.value.col]
         prev_dist = np.linalg.norm(np.array(head_pos) - np.array(apple_pos))
@@ -209,18 +206,16 @@ class Agent(gym.Env):
         if ate_apple:
             reward = APPLE_REWARD
         else:
-            # Calculate new distance to apple
+            # calculate new distance to apple
             head_pos = [snake_ptr.value.head.row, snake_ptr.value.head.col]
             apple_pos = [apple_ptr.value.row, apple_ptr.value.col]
             new_dist = np.linalg.norm(np.array(head_pos) - np.array(apple_pos))
-
-            # Much stronger rewards for getting closer to apple
+            
             distance_change = prev_dist - new_dist
-            reward = distance_change * 100  # Scale up the reward/penalty based on distance change
-
-            # Heavy penalty for moving away from apple
+            reward = distance_change * 100
+            
             if new_dist > prev_dist:
-                reward -= 50  # Extra penalty for moving away
+                reward -= 50
 
         # return reward if the snake reaches 100% length
         if not apple_ptr.value.placed:
@@ -270,8 +265,7 @@ class Agent(gym.Env):
 
                 state = next_state
                 step_count += 1
-
-                # Update network every UPDATE_FREQUENCY steps for efficiency
+                
                 if step_count % UPDATE_FREQUENCY == 0:
                     self.replay()
 
@@ -292,8 +286,7 @@ class Agent(gym.Env):
 
             # reduce exploration rate
             epsilon = max(epsilon*EPSILON_DECAY, EPSILON_MIN)
-
-            # Save progress every 100 episodes
+            
             if i % 100 == 0:
                 self.save_training_data()
                 self.save_training_plot(
@@ -337,7 +330,7 @@ class Agent(gym.Env):
             target_f = target_f.clone()
             target_f[0][action] = target_q
 
-            self.policy_model.train_step(state_tensor, target_f)
+            self.policy_model.step(state_tensor, target_f)
 
         params = zip(self.target_model.parameters(), self.policy_model.parameters())
         for target_param, online_param in params:
@@ -374,7 +367,6 @@ class Agent(gym.Env):
             
             print(f"Diagnosis Episode {i}/{DIAGNOSIS_EPISODES}, \tScore: {score}")
             
-            # Save progress every 100 episodes
             if i % 100 == 0:
                 self.save_diagnostics_plot(
                     scores, 
